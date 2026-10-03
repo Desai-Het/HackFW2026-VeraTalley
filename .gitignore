@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Env files - NEVER commit these (NFR-03). Only .env.example files are tracked.
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+
+# Hardhat
+contracts/cache/
+contracts/artifacts/
+contracts/typechain/
+contracts/typechain-types/
+contracts/deployed-addresses.localhost.json
+contracts/deployed-addresses.hardhat.json
+contracts/coverage/
+contracts/coverage.json
+
+# Next.js
+frontend/.next/
+frontend/out/
+frontend/build/
+
+# Misc
+.DS_Store
+*.log
+npm-debug.log*
+coverage/
+coverage.json

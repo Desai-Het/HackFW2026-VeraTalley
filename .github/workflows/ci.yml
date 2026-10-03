@@ -1,0 +1,93 @@
+name: CI
+
+# Runs on every push and pull request, per section 8 (CI/CD) of the HackFW-2026 requirements:
+# "Lint, contract tests, coverage, and secret scanning on every pull request."
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  secret-scan:
+    name: Secret scanning (NFR-03)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history, so gitleaks checks every past commit too
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  contracts:
+    name: Contracts - lint, test, coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: Compile contracts
+        run: npm run contracts:compile
+      - name: Run contract tests
+        run: npm run contracts:test
+      - name: Run coverage (target: 90%+ per CR-06)
+        run: npm run contracts:coverage
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: contracts-coverage
+          path: contracts/coverage/
+          retention-days: 14
+
+  contracts-static-analysis:
+    name: Contracts - Slither static analysis (CR-07)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: npm ci
+      - name: Compile contracts
+        run: npm run contracts:compile
+      - name: Install Slither
+        run: pip install slither-analyzer
+      - name: Run Slither
+        run: slither . --fail-high
+        working-directory: contracts
+
+  frontend:
+    name: Frontend - lint and build
+    runs-on: ubuntu-latest
+    env:
+      # Dummy values so `next build` can statically generate pages that read these at build time.
+      # Real deployments set the actual deployed addresses as repo/environment secrets or vars.
+      NEXT_PUBLIC_RPC_URL: "https://rpc-amoy.polygon.technology/"
+      NEXT_PUBLIC_CHAIN_ID: "80002"
+      NEXT_PUBLIC_VOTER_REGISTRY_ADDRESS: "0x0000000000000000000000000000000000000000"
+      NEXT_PUBLIC_ELECTION_BALLOT_ADDRESS: "0x0000000000000000000000000000000000000000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: Compile contracts (so frontend/lib/abi/*.json exists for the build)
+        run: npm run contracts:compile
+      - name: Lint frontend
+        run: npm run frontend:lint
+      - name: Build frontend
+        run: npm run frontend:build
