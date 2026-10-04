@@ -84,10 +84,13 @@ Next.js dev server against a real local chain, not just contract unit tests.
 Everything above runs inside this build environment with no real funds or external accounts
 involved. Two things need the team to do them, not something this sandbox can do on its own:
 
-1. **Amoy testnet deployment** - fund a throwaway deployer wallet from a Polygon Amoy faucet, put
-   its private key in `contracts/.env` (never committed - see NFR-03), then run
-   `npm run contracts:deploy:amoy`. The script prints the `hardhat verify` command for Polygonscan
-   (CR-05) and the `NEXT_PUBLIC_*` values the frontend needs.
+1. **Amoy testnet deployment** - fund a throwaway deployer wallet from a Polygon Amoy faucet.
+   Copy `contracts/.env.example` to `contracts/.env` (never committed - see NFR-03) and set
+   `PRIVATE_KEY` and `DEMO_VOTER_ADDRESSES` (the wallets allowed to vote; the script refuses to
+   deploy to Amoy without them). Then run `npm run contracts:deploy:amoy`. It prints the
+   `NEXT_PUBLIC_*` values the frontend needs and the two `hardhat verify` commands for Polygonscan
+   (CR-05), which need `ETHERSCAN_API_KEY` set; the ballot's constructor arguments are written to
+   `contracts/verify-args.amoy.js` for the verify command to read.
 2. **Hosting** - connect this repository to a Vercel project (or similar) so the frontend skeleton
    is reachable at a public URL, per Increment A's "frontend skeleton deployed to Vercel" goal and
    the judging-day requirement that the deployment stay up (NFR-07).

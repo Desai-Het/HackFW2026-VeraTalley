@@ -67,7 +67,7 @@ jobs:
       - name: Compile contracts
         run: npm run contracts:compile
       - name: Install Slither
-        run: pip install slither-analyzer
+        run: pip install slither-analyzer==0.11.6
       - name: Run Slither
         run: slither . --fail-high
         working-directory: contracts

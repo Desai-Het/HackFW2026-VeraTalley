@@ -27,6 +27,7 @@ export default function Home() {
   const [tally, setTally] = useState<bigint[]>([]);
   const [ballotState, setBallotState] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const [account, setAccount] = useState<string | null>(null);
   const [isEligible, setIsEligible] = useState<boolean | null>(null);
@@ -52,8 +53,10 @@ export default function Home() {
       setCandidates(currentCandidates);
       setTally(currentTally);
       setBallotState(Number(currentState));
+      setLoadError(false);
     } catch (err) {
       console.error("Failed to load election data", err);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -177,6 +180,12 @@ export default function Home() {
       <p>
         <span className="badge">{stateLabel}</span>
       </p>
+
+      {loadError && (
+        <div className="status-banner error" role="status">
+          Can&apos;t reach the blockchain network right now. Retrying every few seconds.
+        </div>
+      )}
 
       {status && (
         <div className={`status-banner ${status.kind === "error" ? "error" : status.kind === "success" ? "success" : ""}`} role="status">

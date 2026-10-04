@@ -30,7 +30,11 @@ subtask(TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD).setAction(async ({ solcVersion }) 
 
 const AMOY_RPC_URL = process.env.AMOY_RPC_URL || "https://rpc-amoy.polygon.technology/";
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
-const POLYGONSCAN_API_KEY = process.env.POLYGONSCAN_API_KEY || "";
+// Etherscan's unified V2 API covers Polygon Amoy with a single Etherscan.io key. The old
+// per-explorer config (apiKey: { polygonAmoy: ... }) makes hardhat-verify call Polygonscan's V1
+// API, which Etherscan has retired - so verification (CR-05) would fail. POLYGONSCAN_API_KEY is
+// still read as a fallback name so older .env files keep working.
+const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || process.env.POLYGONSCAN_API_KEY || "";
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -52,8 +56,7 @@ module.exports = {
     },
   },
   etherscan: {
-    apiKey: {
-      polygonAmoy: POLYGONSCAN_API_KEY,
-    },
+    // A single string (not a per-network object) is what selects the Etherscan V2 API.
+    apiKey: ETHERSCAN_API_KEY,
   },
 };
