@@ -16,10 +16,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # full history, so gitleaks checks every past commit too
-      - name: Run gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Runs the gitleaks CLI directly rather than gitleaks/gitleaks-action, because the action
+      # needs a GITLEAKS_LICENSE secret (a sign-up key) on repos owned by an organization. The CLI
+      # has no such requirement and scans the same full history.
+      - name: Install gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz \
+            | tar -xz gitleaks
+      - name: Scan full git history for secrets
+        run: ./gitleaks detect --source . --redact --verbose
 
   contracts:
     name: Contracts - lint, test, coverage
@@ -36,7 +41,7 @@ jobs:
         run: npm run contracts:compile
       - name: Run contract tests
         run: npm run contracts:test
-      - name: Run coverage (target: 90%+ per CR-06)
+      - name: "Run coverage (target: 90%+ per CR-06)"
         run: npm run contracts:coverage
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
