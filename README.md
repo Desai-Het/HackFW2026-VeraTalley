@@ -1,9 +1,15 @@
 # VeraTally
 
+[![CI](https://github.com/dojoga1/HackFW2026-VeraTalley/actions/workflows/ci.yml/badge.svg)](https://github.com/dojoga1/HackFW2026-VeraTalley/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A verifiable election platform for HackFW-2026 (Open track). The pitch: voters and observers
 shouldn't have to trust an organizer's database. VeraTally runs an election on-chain - allowlisted
 wallets, one vote each, enforced by code - so anyone can check the result for themselves, with no
 account and no special access.
+
+**Stack:** Solidity + Hardhat (contracts), Next.js + React + TypeScript + ethers.js (frontend, no
+backend server), MetaMask (wallet), Polygon Amoy (testnet chain).
 
 **Status: Sprint 1 (Increment A + B) complete.** This is a thin, fully working golden path - not
 yet the full project. See [What's here](#whats-here-and-whats-not-yet) below for exactly what that
@@ -48,7 +54,8 @@ docs/          architecture.md, decision-log.md, and per-sprint requirements doc
 
 ## Running it locally
 
-Requires Node.js 20+.
+Requires Node.js 20+ and the [MetaMask](https://metamask.io/) browser extension (Chrome, Firefox,
+or Edge - desktop only, since it needs to reach a server running on your own machine).
 
 ```bash
 npm ci
@@ -72,7 +79,16 @@ into `frontend/.env.local` (copy `frontend/.env.local.example` first):
 
 ```bash
 cp frontend/.env.local.example frontend/.env.local
-# then fill in NEXT_PUBLIC_VOTER_REGISTRY_ADDRESS and NEXT_PUBLIC_ELECTION_BALLOT_ADDRESS
+```
+
+The example file defaults to Amoy's RPC URL and chain id. For local testing, edit
+`frontend/.env.local` so all four values point at your local chain instead:
+
+```
+NEXT_PUBLIC_RPC_URL=http://127.0.0.1:8545/
+NEXT_PUBLIC_CHAIN_ID=31337
+NEXT_PUBLIC_VOTER_REGISTRY_ADDRESS=<address the deploy script printed>
+NEXT_PUBLIC_ELECTION_BALLOT_ADDRESS=<address the deploy script printed>
 ```
 
 Then:
@@ -81,9 +97,19 @@ Then:
 npm run frontend:dev
 ```
 
-Open the app, connect a wallet holding one of the two demo voter addresses the deploy script
-registered (its default accounts are Hardhat's standard local test accounts - never use these on a
-real network), cast a vote, and watch the tally update.
+Open `http://localhost:3000`. Before connecting, set MetaMask up for the local chain - the app's
+network-switcher only knows how to auto-add Polygon Amoy (see `frontend/lib/network.ts`), so for a
+local chain you add it yourself, once:
+
+1. In MetaMask, add a network manually: RPC URL `http://127.0.0.1:8545/`, chain ID `31337`,
+   currency symbol `ETH`.
+2. Import one of the two demo voter accounts the deploy script registered, using its private key
+   from the `hardhat node` terminal's printed account list (MetaMask: account icon -> **Import
+   Account**). These are Hardhat's well-known default test keys - safe to use locally, but never
+   send real funds to them on any live network.
+
+Connect that account, cast a vote, and watch the tally update. Voting again, or voting from an
+unregistered account, is refused with an explanation.
 
 ## Deploying to Polygon Amoy
 
@@ -99,4 +125,4 @@ in `docs/sprints/sprint-NN/requirements.md`; architectural decisions are logged 
 
 ## License
 
-MIT
+[MIT](LICENSE)
