@@ -1,15 +1,41 @@
+/* VeraTally - a quiet, paper-like interface. One accent colour, used for actions and vote shares. */
+
 :root {
-  --color-bg: #ffffff;
-  --color-text: #15181c;
-  --color-muted: #5b6470;
-  --color-border: #d7dce1;
-  --color-accent: #1a56db;
-  --color-accent-contrast: #ffffff;
-  --color-success-bg: #e6f6ec;
-  --color-success-text: #0a6b35;
-  --color-error-bg: #fdecec;
-  --color-error-text: #9a1c1c;
-  --radius: 8px;
+  --bg: #fbfbf9;
+  --surface: #ffffff;
+  --text: #1b1c1a;
+  --muted: #6a6c66;
+  --line: #e6e6e1;
+  --line-strong: #cfcfc8;
+  --accent: #19695a;
+  --accent-soft: #e4f0ec;
+  --accent-contrast: #ffffff;
+  --success-bg: #e4f0ec;
+  --success-text: #124c41;
+  --error-bg: #fbeae8;
+  --error-text: #8f2a21;
+  --note-bg: #f2f2ee;
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131413;
+    --surface: #1b1c1a;
+    --text: #ecece8;
+    --muted: #9a9c95;
+    --line: #2c2d2a;
+    --line-strong: #43443f;
+    --accent: #5fbba8;
+    --accent-soft: #1d2f2b;
+    --accent-contrast: #0e1513;
+    --success-bg: #1d2f2b;
+    --success-text: #9fdccd;
+    --error-bg: #34201e;
+    --error-text: #f0a69f;
+    --note-bg: #20211f;
+  }
 }
 
 * {
@@ -23,67 +49,211 @@ body {
 }
 
 body {
-  background: var(--color-bg);
-  color: var(--color-text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
 }
 
 main {
-  max-width: 640px;
+  max-width: 600px;
   margin: 0 auto;
-  padding: 24px 16px 64px;
+  padding: 40px 20px 96px;
 }
 
 h1 {
-  font-size: 1.5rem;
-  margin-bottom: 4px;
+  font-size: 1.75rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  font-weight: 650;
+  margin: 0 0 12px;
 }
 
 h2 {
-  font-size: 1.1rem;
-  margin: 1.5rem 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 36px 0 12px;
+}
+
+h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
 }
 
 p {
-  color: var(--color-muted);
+  color: var(--muted);
+  margin: 0 0 14px;
 }
+
+small {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+a {
+  color: var(--accent);
+  text-underline-offset: 3px;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82em;
+  word-break: break-all;
+}
+
+/* ---- Buttons ---- */
 
 button {
   font: inherit;
+  font-size: 0.95rem;
   cursor: pointer;
-  border-radius: var(--radius);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
-  color: var(--color-text);
-  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--text);
+  padding: 9px 16px;
+  transition: border-color 0.12s, background-color 0.12s;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--text);
 }
 
 button:disabled {
   cursor: not-allowed;
-  opacity: 0.55;
+  opacity: 0.45;
 }
 
 button.primary {
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
-  border-color: var(--color-accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+button.primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  border-color: var(--accent);
 }
 
 button:focus-visible,
-a:focus-visible {
-  outline: 3px solid var(--color-accent);
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
+/* ---- Navigation ---- */
+
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+  align-items: center;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px 20px 0;
+}
+
+.site-nav a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.site-nav a:hover {
+  color: var(--text);
+}
+
+.site-nav-brand {
+  font-weight: 700;
+  font-size: 1rem !important;
+  letter-spacing: -0.01em;
+  margin-right: auto;
+  color: var(--text) !important;
+}
+
+/* ---- Status badges and banners ---- */
+
 .badge {
-  display: inline-block;
-  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
   font-weight: 600;
   padding: 2px 10px;
   border-radius: 999px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+  white-space: nowrap;
 }
+
+.badge-open {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--success-text);
+}
+
+.badge-open::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.badge-draft {
+  border-style: dashed;
+}
+
+.badge-closed {
+  background: var(--note-bg);
+  border-color: transparent;
+}
+
+.status-banner {
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin: 14px 0;
+  background: var(--note-bg);
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.status-banner.error {
+  background: var(--error-bg);
+  color: var(--error-text);
+}
+
+.status-banner.success {
+  background: var(--success-bg);
+  color: var(--success-text);
+}
+
+.result-banner {
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin: 20px 0 0;
+  background: var(--accent-soft);
+  color: var(--success-text);
+}
+
+.result-banner a {
+  color: inherit;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+/* ---- Candidates and results ---- */
 
 .candidate-list {
   list-style: none;
@@ -91,40 +261,311 @@ a:focus-visible {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .candidate-row {
+  position: relative;
+  overflow: hidden;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border: 1px solid var(--color-border);
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 12px 16px;
+  padding: 14px 16px;
+}
+
+.candidate-row:has(input:checked) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.candidate-row label {
+  position: relative;
+  z-index: 1;
+}
+
+.candidate-row input[type="radio"] {
+  accent-color: var(--accent);
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.candidate-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--accent-soft);
+  transition: width 0.4s ease;
 }
 
 .tally-count {
+  position: relative;
+  z-index: 1;
   font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+/* ---- Forms ---- */
+
+.field {
+  margin: 22px 0;
+}
+
+.field label,
+.field-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.92rem;
+  margin-bottom: 8px;
+}
+
+.field input[type="text"],
+.field textarea {
+  width: 100%;
+  font: inherit;
+  padding: 11px 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.field input[type="text"]::placeholder,
+.field textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.8;
+}
+
+.field textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.candidate-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.candidate-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.candidate-input-row button {
+  color: var(--muted);
+}
+
+.hint {
+  font-size: 0.82rem;
+  margin: 6px 0 10px;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+/* ---- Admin panel ---- */
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin: 24px 0 0;
+}
+
+.panel h2 {
+  margin-top: 0;
+}
+
+.panel .field:last-child {
+  margin-bottom: 0;
+}
+
+.panel .field + .field {
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+
+/* ---- Election list ---- */
+
+.election-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.election-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 0.12s;
+}
+
+.election-row:hover {
+  border-color: var(--text);
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 16px;
+}
+
+.tabs button {
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.88rem;
+}
+
+.tabs button[aria-pressed="true"] {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+
+/* ---- Verification table ---- */
+
+.verify-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 0.92rem;
+}
+
+.verify-table th,
+.verify-table td {
+  text-align: left;
+  padding: 9px 8px 9px 0;
+  border-bottom: 1px solid var(--line);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.verify-table thead th {
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.verify-table tbody th {
   font-weight: 600;
 }
 
-.status-banner {
-  border-radius: var(--radius);
-  padding: 12px 16px;
-  margin: 12px 0;
+@media (max-width: 480px) {
+  main {
+    padding-top: 28px;
+  }
+  h1 {
+    font-size: 1.5rem;
+  }
+  .row-actions button {
+    flex: 1;
+  }
 }
 
-.status-banner.error {
-  background: var(--color-error-bg);
-  color: var(--color-error-text);
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
 }
 
-.status-banner.success {
-  background: var(--color-success-bg);
-  color: var(--color-success-text);
+/* ---- Page actions, link buttons, wallet line ---- */
+
+.page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 20px;
 }
 
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.85em;
+.btn {
+  display: inline-block;
+  font-size: 0.95rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--text);
+  padding: 9px 16px;
+  text-decoration: none;
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.wallet-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 4px 0 8px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.wallet-pill {
+  background: var(--note-bg);
+  border-radius: 999px;
+  padding: 3px 11px;
+  color: var(--text);
+  word-break: normal;
+}
+
+.candidate-list + p {
+  margin-top: 18px;
+}
+
+/* ---- Landing page ---- */
+
+.hero {
+  padding: 24px 0 8px;
+}
+
+.hero h1 {
+  font-size: 2.1rem;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  max-width: 14em;
+  margin-bottom: 16px;
+}
+
+.hero p {
+  font-size: 1.05rem;
+  max-width: 34em;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 480px) {
+  .hero h1 {
+    font-size: 1.75rem;
+  }
 }
