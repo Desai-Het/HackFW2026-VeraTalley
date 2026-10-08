@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
+import ShareQrCode from "@/components/ShareQrCode";
 import { describeError, getElectionBallotAt, getVoterRegistryAt } from "@/lib/contracts";
 import { MAX_VOTERS_PER_TRANSACTION, parseAddressList } from "@/lib/elections";
 import { getWalletSigner } from "@/lib/useWallet";
@@ -14,6 +16,10 @@ type Props = {
   candidateCount: number;
   /** Called after any confirmed change so the page re-reads the chain straight away. */
   onChanged: () => Promise<void> | void;
+  /** Used to build the shareable voting link/QR code - not every page that renders this panel
+   *  necessarily has one yet, so it's optional. */
+  electionId?: string;
+  title: string;
 };
 
 type Status = { kind: "error" | "success" | "info"; text: string } | null;
@@ -21,7 +27,16 @@ type Confirming = "open" | "close" | null;
 
 /** Controls only the election's admin should see (CR-02). Hiding them is a convenience - the
  *  contracts refuse anyone else regardless - so nothing here is a security boundary. */
-export default function AdminPanel({ registryAddress, ballotAddress, state, voterCount, candidateCount, onChanged }: Props) {
+export default function AdminPanel({
+  registryAddress,
+  ballotAddress,
+  state,
+  voterCount,
+  candidateCount,
+  onChanged,
+  electionId,
+  title,
+}: Props) {
   const [raw, setRaw] = useState("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<Status>(null);
@@ -94,6 +109,17 @@ export default function AdminPanel({ registryAddress, ballotAddress, state, vote
         </div>
       )}
 
+      {electionId && (
+        <div className="field field-share">
+          <h3>Share this election</h3>
+          <p className="hint">
+            Anyone who opens this link or scans the QR code can see the ballot, and can vote if they&apos;re
+            registered.
+          </p>
+          <ShareQrCode path={`/elections/${electionId}`} shareTitle={`Vote: ${title}`} />
+        </div>
+      )}
+
       {state !== 2 && (
         <div className="field">
           <label htmlFor="voter-addresses">Add voters</label>
@@ -156,8 +182,20 @@ export default function AdminPanel({ registryAddress, ballotAddress, state, vote
 
       {state === 1 && (
         <div className="field">
-          <h3>Close voting</h3>
-          {confirming === "close" ? (
+          <h3>Voting is open</h3>
+          <div className="row-actions">
+            {electionId && (
+              <Link href={`/elections/${electionId}/live`} target="_blank" rel="noreferrer" className="btn primary">
+                View live stats
+              </Link>
+            )}
+            {confirming !== "close" && (
+              <button onClick={() => setConfirming("close")} disabled={busy}>
+                Close voting
+              </button>
+            )}
+          </div>
+          {confirming === "close" && (
             <div className="status-banner error" role="alert">
               Closing voting is permanent. Nobody can vote afterwards and it cannot be reopened. Close voting now?
               <div className="row-actions">
@@ -169,10 +207,6 @@ export default function AdminPanel({ registryAddress, ballotAddress, state, vote
                 </button>
               </div>
             </div>
-          ) : (
-            <button onClick={() => setConfirming("close")} disabled={busy}>
-              Close voting
-            </button>
           )}
         </div>
       )}

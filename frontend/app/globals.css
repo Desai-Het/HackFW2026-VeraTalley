@@ -401,6 +401,89 @@ textarea:focus-visible {
   padding-top: 20px;
 }
 
+/* ---- Share / QR code ---- */
+
+.qr-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.qr-box img {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  padding: 8px;
+}
+
+/* On wide screens there's a lot of empty page either side of the narrow 600px column, so the QR
+ * card moves out of the form's normal flow and hovers in that space instead - the panel becomes
+ * the positioning anchor, and the card is pinned to its right edge. Below this width there isn't
+ * room for it beside the column, so it stays inline where .qr-box's base rules put it.
+ *
+ * Scoped to ".panel .qr-box" specifically - .qr-box is reused as a plain, normally-flowing box on
+ * the live-stats page (inside .live-qr), which has no positioned ancestor of its own. An earlier,
+ * unscoped ".qr-box { position: absolute; ... }" here applied there too and pushed that page's QR
+ * code off toward the right edge of the whole document, effectively invisible. */
+@media (min-width: 1200px) {
+  .panel {
+    position: relative;
+  }
+
+  .field-share {
+    max-width: 360px;
+  }
+
+  .panel .qr-box {
+    position: absolute;
+    top: 4px;
+    left: calc(100% + 40px);
+    width: 196px;
+    padding: 18px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: 0 24px 34px -16px rgba(0, 0, 0, 0.38);
+    animation: qr-float 4.5s ease-in-out infinite;
+  }
+
+  .panel .qr-box::after {
+    content: "";
+    position: absolute;
+    left: 22%;
+    right: 22%;
+    bottom: -16px;
+    height: 18px;
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.4), transparent 72%);
+    border-radius: 50%;
+    animation: qr-shadow 4.5s ease-in-out infinite;
+    z-index: -1;
+  }
+}
+
+@keyframes qr-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes qr-shadow {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(0.78);
+    opacity: 0.28;
+  }
+}
+
 /* ---- Election list ---- */
 
 .election-list {
@@ -492,6 +575,7 @@ textarea:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
+    animation: none !important;
   }
 }
 
@@ -567,5 +651,192 @@ textarea:focus-visible {
 @media (max-width: 480px) {
   .hero h1 {
     font-size: 1.75rem;
+  }
+}
+
+/* ---- Live stats page ---- */
+/* A second-screen display, not a form - wider than the site's usual 600px reading column, and
+ * built to be glanced at from across a room. */
+
+.live-page {
+  max-width: 1120px;
+}
+
+.live-stage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 48px;
+  align-items: flex-start;
+}
+
+.live-results {
+  flex: 1 1 420px;
+  min-width: 280px;
+}
+
+.live-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.live-pulse-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: live-pulse 1.4s ease-in-out infinite;
+}
+
+.live-title {
+  font-size: 2.4rem;
+  margin-bottom: 28px;
+}
+
+.live-bars {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.live-bar-row {
+  border-radius: var(--radius);
+}
+
+.live-bar-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.live-bar-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.live-bar-count {
+  font-size: 1.3rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.live-bar-track {
+  height: 30px;
+  background: var(--note-bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.live-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: inherit;
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.live-bar-winner .live-bar-name {
+  color: var(--success-text);
+}
+
+.live-bar-pulse {
+  animation: live-row-flash 0.9s ease-out;
+}
+
+.live-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.live-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.live-stat-number {
+  font-size: 2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.live-stat-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  max-width: 14em;
+}
+
+.live-qr {
+  flex: 0 0 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.live-qr .qr-box {
+  align-items: center;
+}
+
+.live-qr-label {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text);
+  margin: 0;
+}
+
+@keyframes live-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.6);
+    opacity: 0.4;
+  }
+}
+
+@keyframes live-row-flash {
+  0% {
+    transform: scale(1);
+    box-shadow: none;
+  }
+  30% {
+    transform: scale(1.015);
+    box-shadow: 0 0 0 4px var(--accent-soft);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .live-title {
+    font-size: 1.8rem;
+  }
+  .live-qr {
+    flex-basis: auto;
+    width: 100%;
   }
 }

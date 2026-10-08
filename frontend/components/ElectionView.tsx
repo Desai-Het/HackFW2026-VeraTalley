@@ -204,6 +204,8 @@ export default function ElectionView({ registryAddress, ballotAddress, electionI
           voterCount={voterCount}
           candidateCount={candidates.length}
           onChanged={refreshAll}
+          electionId={electionId}
+          title={title}
         />
       )}
 
