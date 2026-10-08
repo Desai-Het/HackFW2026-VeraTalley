@@ -41,11 +41,16 @@ contract ElectionBallot {
     /// @param _title Election title shown in the UI.
     /// @param _candidates Candidate names, in display/index order. Must be at least 2.
     /// @param _voterRegistry Address of this election's VoterRegistry.
-    constructor(string memory _title, string[] memory _candidates, address _voterRegistry) {
+    /// @param _admin The only wallet allowed to open and close this election. Passed in (rather
+    ///        than taken from msg.sender) so ElectionFactory can deploy a ballot on behalf of
+    ///        the wallet that called createElection (CR-02). Cannot be the zero address and
+    ///        cannot be changed later.
+    constructor(string memory _title, string[] memory _candidates, address _voterRegistry, address _admin) {
         require(_candidates.length >= 2, "VeraTally: need at least two candidates");
         require(_voterRegistry != address(0), "VeraTally: zero address");
+        require(_admin != address(0), "VeraTally: zero address");
 
-        admin = msg.sender;
+        admin = _admin;
         title = _title;
         for (uint256 i = 0; i < _candidates.length; i++) {
             candidates.push(_candidates[i]);

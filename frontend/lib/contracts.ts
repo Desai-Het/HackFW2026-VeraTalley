@@ -1,9 +1,13 @@
 import { BrowserProvider, Contract, JsonRpcProvider, Network, type Provider, type Signer } from "ethers";
 import voterRegistryAbi from "./abi/VoterRegistry.abi.json";
 import electionBallotAbi from "./abi/ElectionBallot.abi.json";
+import electionFactoryAbi from "./abi/ElectionFactory.abi.json";
 
 export const VOTER_REGISTRY_ADDRESS = process.env.NEXT_PUBLIC_VOTER_REGISTRY_ADDRESS || "";
 export const ELECTION_BALLOT_ADDRESS = process.env.NEXT_PUBLIC_ELECTION_BALLOT_ADDRESS || "";
+// The factory that creates elections (Increment C). The create/list/manage pages read every
+// election's registry and ballot addresses from it, so this is the only address they need.
+export const ELECTION_FACTORY_ADDRESS = process.env.NEXT_PUBLIC_ELECTION_FACTORY_ADDRESS || "";
 
 const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://rpc-amoy.polygon.technology/";
 const READ_CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID || 80002);
@@ -41,6 +45,24 @@ export function getElectionBallot(runner: Provider | Signer): Contract {
 
 export function contractsConfigured(): boolean {
   return Boolean(VOTER_REGISTRY_ADDRESS && ELECTION_BALLOT_ADDRESS);
+}
+
+/** The same contracts, but at an address chosen at runtime - used by the pages that show any
+ *  election made through the factory rather than the single one set in the env file. */
+export function getVoterRegistryAt(address: string, runner: Provider | Signer): Contract {
+  return new Contract(address, voterRegistryAbi, runner);
+}
+
+export function getElectionBallotAt(address: string, runner: Provider | Signer): Contract {
+  return new Contract(address, electionBallotAbi, runner);
+}
+
+export function getElectionFactory(runner: Provider | Signer): Contract {
+  return new Contract(ELECTION_FACTORY_ADDRESS, electionFactoryAbi, runner);
+}
+
+export function factoryConfigured(): boolean {
+  return Boolean(ELECTION_FACTORY_ADDRESS);
 }
 
 /** Turns a raw ethers/revert error into the plain-language message the contract already

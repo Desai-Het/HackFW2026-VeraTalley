@@ -4,7 +4,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const CONTRACTS = ["VoterRegistry", "ElectionBallot"];
+const CONTRACTS = ["VoterRegistry", "ElectionBallot", "ElectionFactory"];
 
 for (const name of CONTRACTS) {
   const artifactPath = path.join(__dirname, "..", "artifacts", "contracts", `${name}.sol`, `${name}.json`);

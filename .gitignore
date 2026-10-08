@@ -31,3 +31,7 @@ frontend/build/
 npm-debug.log*
 coverage/
 coverage.json
+Extra_Files
+
+# Claude's own working/reference notes (status tracker, guides) - not part of the submission
+Claude-MDs/
