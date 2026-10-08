@@ -12,10 +12,16 @@ type Props = {
  *  row per candidate. Semantic radiogroup markup so it's screen-reader and keyboard usable
  *  (NFR-05) without any extra library. */
 export default function CandidateList({ candidates, tally, selectedId, onSelect, canVote }: Props) {
+  const total = tally.reduce((sum, v) => sum + Number(v ?? 0n), 0);
   return (
     <ul className="candidate-list" role="radiogroup" aria-label="Candidates">
       {candidates.map((name, id) => (
         <li key={id} className="candidate-row">
+          <span
+            className="candidate-fill"
+            aria-hidden="true"
+            style={{ width: `${total > 0 ? (Number(tally[id] ?? 0n) / total) * 100 : 0}%` }}
+          />
           <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: canVote ? "pointer" : "default" }}>
             <input
               type="radio"

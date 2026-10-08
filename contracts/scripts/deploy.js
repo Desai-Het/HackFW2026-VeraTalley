@@ -111,7 +111,7 @@ async function main() {
   console.log(`       NEXT_PUBLIC_VOTER_REGISTRY_ADDRESS=${registryAddress}`);
   console.log(`       NEXT_PUBLIC_ELECTION_BALLOT_ADDRESS=${ballotAddress}`);
   console.log(`       NEXT_PUBLIC_CHAIN_ID=${deployedInfo.chainId}`);
-  console.log(`  (ElectionFactory is at ${factoryAddress} - the upcoming create-an-election UI will need it.)`);
+  console.log(`       NEXT_PUBLIC_ELECTION_FACTORY_ADDRESS=${factoryAddress}`);
   if (!isLocal) {
     // The ballot's constructor takes a string[], which `hardhat verify` cannot take as a
     // command-line argument (it would be encoded as one string and verification would fail), so
