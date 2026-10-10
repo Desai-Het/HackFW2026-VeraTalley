@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import SiteNav from "@/components/SiteNav";
+import WalletProvider from "@/components/WalletProvider";
 
 export const metadata: Metadata = {
   title: "VeraTally",
@@ -11,8 +12,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <SiteNav />
-        {children}
+        <WalletProvider>
+          <SiteNav />
+          {children}
+        </WalletProvider>
       </body>
     </html>
   );

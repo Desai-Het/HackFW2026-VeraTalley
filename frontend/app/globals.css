@@ -840,3 +840,8 @@ textarea:focus-visible {
     width: 100%;
   }
 }
+
+/* thirdweb sign-in button in the top bar */
+.site-nav-wallet {
+  display: inline-flex;
+}
