@@ -54,8 +54,9 @@ export function useWallet() {
       return;
     }
     try {
-      await ensureCorrectNetwork(ethereum);
+      // Connect first so MetaMask always opens, then guide the wallet onto the right network.
       const accounts: string[] = await ethereum.request({ method: "eth_requestAccounts" });
+      await ensureCorrectNetwork(ethereum);
       setAccount(accounts[0] ?? null);
     } catch (err) {
       setError(describeError(err));

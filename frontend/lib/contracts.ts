@@ -74,6 +74,11 @@ export function describeError(err: any): string {
     return "You cancelled the request in your wallet.";
   }
 
+  // -32002: MetaMask already has a request open (often from an earlier click) and is waiting.
+  if (err?.code === -32002 || err?.info?.error?.code === -32002) {
+    return "MetaMask is already waiting for you. Click the MetaMask icon in your browser toolbar to finish.";
+  }
+
   // The revert reason can sit in different fields depending on the wallet and on whether the
   // failure came from gas estimation or the transaction itself, so check all of them.
   const messages: string[] = [

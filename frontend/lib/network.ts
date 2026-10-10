@@ -12,15 +12,37 @@ const AMOY_PARAMS = {
   blockExplorerUrls: ["https://amoy.polygonscan.com/"],
 };
 
+export const HARDHAT_CHAIN_ID = 31337;
+
+/** Network details for a local Hardhat node, so MetaMask can add it on its own instead of the
+ *  person typing them in by hand. Uses the same RPC URL the app reads from. */
+function localHardhatParams() {
+  return {
+    chainId: "0x" + HARDHAT_CHAIN_ID.toString(16),
+    chainName: "Hardhat Local",
+    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+    rpcUrls: [process.env.NEXT_PUBLIC_RPC_URL || "http://127.0.0.1:8545"],
+  };
+}
+
+/** True when the wallet says it doesn't know the requested network yet. MetaMask normally
+ *  reports this as code 4902, but some versions wrap it inside a generic -32603 error. */
+function isUnknownChainError(err: any): boolean {
+  return (
+    err?.code === 4902 ||
+    err?.data?.originalError?.code === 4902 ||
+    /unrecognized chain|not been added/i.test(err?.message ?? "")
+  );
+}
+
 export function getTargetChainId(): number {
   const configured = process.env.NEXT_PUBLIC_CHAIN_ID;
   return configured ? Number(configured) : AMOY_CHAIN_ID;
 }
 
 /** Asks the wallet to switch to the target network, adding it first if the wallet doesn't know
- *  it yet. Only knows how to *add* Amoy specifically - for any other configured chain id (e.g.
- *  a local Hardhat node during development) it only attempts a switch, since there's no single
- *  right RPC URL to offer for "add" in that case. */
+ *  it yet. Knows how to *add* Polygon Amoy and a local Hardhat node (31337); for any other chain
+ *  id it only attempts a switch. */
 export async function ensureCorrectNetwork(ethereum: any): Promise<void> {
   const targetChainId = getTargetChainId();
   const targetHex = "0x" + targetChainId.toString(16);
@@ -34,11 +56,17 @@ export async function ensureCorrectNetwork(ethereum: any): Promise<void> {
       params: [{ chainId: targetHex }],
     });
   } catch (switchError: any) {
-    // 4902 = the wallet doesn't have this network yet.
-    if (switchError?.code === 4902 && targetChainId === AMOY_CHAIN_ID) {
+    const addParams =
+      targetChainId === AMOY_CHAIN_ID
+        ? AMOY_PARAMS
+        : targetChainId === HARDHAT_CHAIN_ID
+          ? localHardhatParams()
+          : null;
+    if (isUnknownChainError(switchError) && addParams) {
+      // Adding a network in MetaMask also switches to it once the person approves.
       await ethereum.request({
         method: "wallet_addEthereumChain",
-        params: [AMOY_PARAMS],
+        params: [addParams],
       });
     } else {
       throw switchError;
