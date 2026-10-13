@@ -53,6 +53,7 @@ contract ElectionFactory {
     {
         VoterRegistry newRegistry = new VoterRegistry(msg.sender);
         ElectionBallot newBallot = new ElectionBallot(title, candidates, address(newRegistry), msg.sender);
+        newRegistry.linkBallot(address(newBallot));
 
         electionId = _elections.length;
         registry = address(newRegistry);

@@ -13,6 +13,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <SiteNav />
         {children}
+        <footer className="site-footer">
+          <div className="site-footer-inner">
+            <p>VeraTally. Elections you can recount yourself.</p>
+            <p>Votes are public on the blockchain.</p>
+          </div>
+        </footer>
       </body>
     </html>
   );

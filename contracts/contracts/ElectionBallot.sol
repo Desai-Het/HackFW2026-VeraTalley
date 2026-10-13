@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {VoterRegistry} from "./VoterRegistry.sol";
+import {SignatureLib} from "./SignatureLib.sol";
 
 /// @title ElectionBallot
 /// @notice A single-contest, single-choice election: one allowlisted wallet, one vote.
@@ -19,6 +20,8 @@ contract ElectionBallot {
         Open,
         Closed
     }
+
+    bytes32 public constant VOTE_TYPEHASH = keccak256("Vote(address voter,uint256 candidateId)");
 
     address public immutable admin;
     VoterRegistry public immutable voterRegistry;
@@ -76,15 +79,30 @@ contract ElectionBallot {
     /// @notice Casts one vote for `candidateId`. Reverts with a specific, UI-friendly reason if
     ///         voting isn't open, the caller isn't on the allowlist, or the caller already voted.
     function castVote(uint256 candidateId) external {
+        _cast(msg.sender, candidateId);
+    }
+
+    /// @notice Casts a vote on behalf of `voter`, using the voter's own EIP-712 signature over
+    ///         Vote(voter, candidateId). Anyone may submit it, so a relayer can pay the gas and
+    ///         the voter needs no wallet app. The relayer cannot change the choice: any change
+    ///         invalidates the signature.
+    function castVoteBySig(address voter, uint256 candidateId, bytes calldata sig) external {
+        address signer =
+            SignatureLib.recover(address(this), keccak256(abi.encode(VOTE_TYPEHASH, voter, candidateId)), sig);
+        require(signer != address(0) && signer == voter, "VeraTally: invalid signature");
+        _cast(voter, candidateId);
+    }
+
+    function _cast(address voter, uint256 candidateId) private {
         require(state == State.Open, "VeraTally: voting is not open");
-        require(voterRegistry.isEligible(msg.sender), "VeraTally: this wallet is not registered to vote");
-        require(!hasVoted[msg.sender], "VeraTally: this wallet has already voted");
+        require(voterRegistry.isEligible(voter), "VeraTally: this wallet is not registered to vote");
+        require(!hasVoted[voter], "VeraTally: this wallet has already voted");
         require(candidateId < candidates.length, "VeraTally: invalid candidate");
 
-        hasVoted[msg.sender] = true;
+        hasVoted[voter] = true;
         voteCounts[candidateId] += 1;
 
-        emit VoteCast(msg.sender, candidateId);
+        emit VoteCast(voter, candidateId);
     }
 
     // ---------------------------------------------------------------------

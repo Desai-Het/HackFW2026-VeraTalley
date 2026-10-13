@@ -18,7 +18,7 @@ export type VerificationResult = {
 /** First block at which the address has code, found by binary search. Needs a node that can
  *  answer eth_getCode for old blocks (nearly all do for recent history). Lets us start reading
  *  events at the deployment instead of at block 0, which public RPCs reject or time out on. */
-async function findDeploymentBlock(provider: Provider, address: string, latest: number): Promise<number> {
+export async function findDeploymentBlock(provider: Provider, address: string, latest: number): Promise<number> {
   let lo = 0;
   let hi = latest;
   while (lo < hi) {

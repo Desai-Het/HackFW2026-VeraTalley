@@ -1,21 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
-import { BALLOT_STATE_LABELS, factoryConfigured, getElectionFactory, getReadProvider } from "@/lib/contracts";
-import { useWallet } from "@/lib/useWallet";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import ConfigNotice from "@/components/ConfigNotice";
+import StateBadge from "@/components/StateBadge";
+import { factoryConfigured, getElectionFactory, getReadProvider } from "@/lib/contracts";
 import { fetchElectionSummary, shortAddress, type ElectionSummary } from "@/lib/elections";
+import { useWallet } from "@/lib/useWallet";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 24;
+
+type Filter = "all" | "open" | "closed" | "mine";
+
+const FILTERS: { id: Filter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "open", label: "Open" },
+  { id: "closed", label: "Closed" },
+  { id: "mine", label: "Created by me" },
+];
 
 export default function ElectionsPage() {
   const configured = factoryConfigured();
   const [items, setItems] = useState<ElectionSummary[]>([]);
   const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(configured);
   const [error, setError] = useState(false);
   const [shown, setShown] = useState(PAGE_SIZE);
-  const [mineOnly, setMineOnly] = useState(false);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [query, setQuery] = useState("");
   const { account, connect } = useWallet();
 
   const load = useCallback(async () => {
@@ -41,81 +53,106 @@ export default function ElectionsPage() {
     load();
   }, [load]);
 
-  const visible =
-    mineOnly && account ? items.filter((e) => e.creator.toLowerCase() === account.toLowerCase()) : items;
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return items.filter((e) => {
+      if (q && !e.title.toLowerCase().includes(q)) return false;
+      if (filter === "open") return e.state === 1;
+      if (filter === "closed") return e.state === 2;
+      if (filter === "mine") return Boolean(account) && e.creator.toLowerCase() === account!.toLowerCase();
+      return true;
+    });
+  }, [items, filter, query, account]);
 
-  if (!configured) {
-    return (
-      <main>
-        <h1>Elections</h1>
-        <div className="status-banner error">
-          This app isn&apos;t pointed at an election factory yet. Set NEXT_PUBLIC_ELECTION_FACTORY_ADDRESS in
-          frontend/.env.local, then restart the app.
-        </div>
-      </main>
-    );
+  function pick(next: Filter) {
+    if (next === "mine" && !account) connect();
+    setFilter(next);
   }
 
   return (
-    <main>
-      <h1>Elections</h1>
-      <div className="page-actions">
-        <Link href="/elections/create" className="btn primary">
-          Create an election
-        </Link>
-        <button onClick={load} disabled={loading}>
-          {loading ? "Loading..." : "Refresh"}
-        </button>
+    <main className="page-wide">
+      <div className="page-title-row">
+        <h1>Elections</h1>
+        <p>Every election created on VeraTally, newest first.</p>
       </div>
 
-      {error && (
-        <div className="status-banner error" role="status">
-          Can&apos;t reach the blockchain network right now. Press Refresh to try again.
-        </div>
-      )}
+      {!configured ? (
+        <ConfigNotice />
+      ) : (
+        <>
+          <div className="toolbar">
+            <input
+              type="search"
+              className="search"
+              placeholder="Search by title"
+              aria-label="Search elections by title"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            <div className="chips" role="group" aria-label="Filter elections">
+              {FILTERS.map((f) => (
+                <button key={f.id} aria-pressed={filter === f.id} onClick={() => pick(f.id)}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            <button className="btn-sm" onClick={load} disabled={loading}>
+              {loading ? "Loading..." : "Refresh"}
+            </button>
+          </div>
 
-      {!error && !loading && total === 0 && <p>No elections yet. Be the first to create one.</p>}
+          {error && (
+            <div className="status-banner error" role="status">
+              Can&apos;t reach the blockchain network right now. Press Refresh to try again.
+            </div>
+          )}
 
-      <div className="tabs" role="group" aria-label="Filter elections">
-        <button aria-pressed={!mineOnly} onClick={() => setMineOnly(false)}>
-          All
-        </button>
-        {account ? (
-          <button aria-pressed={mineOnly} onClick={() => setMineOnly(true)}>
-            Created by me
-          </button>
-        ) : (
-          <button onClick={connect}>Connect wallet to see mine</button>
-        )}
-      </div>
+          {filter === "mine" && !account && (
+            <div className="status-banner">Connect your wallet to see the elections you created.</div>
+          )}
 
-      {mineOnly && !loading && !error && visible.length === 0 && (
-        <p>You haven&apos;t created any elections in the {items.length} shown. Try &quot;Show older elections&quot; or create one.</p>
-      )}
+          {!error && !loading && total === 0 && (
+            <div className="empty">
+              <h3>No elections yet</h3>
+              <p>Use Create election at the top to start the first one.</p>
+            </div>
+          )}
 
-      <ul className="election-list">
-        {visible.map((e) => (
-          <li key={e.id}>
-            <Link href={`/elections/${e.id}`} className="election-row">
-              <span>
-                <strong>{e.title}</strong>
-                <br />
-                <small>
-                  {e.candidateCount} candidates, created by <span className="mono">{shortAddress(e.creator)}</span>
-                </small>
-              </span>
-              <span className={`badge badge-${["draft", "open", "closed"][e.state] ?? "draft"}`}>{BALLOT_STATE_LABELS[e.state] ?? "Unknown"}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+          {!error && !loading && total > 0 && visible.length === 0 && !(filter === "mine" && !account) && (
+            <div className="empty">
+              <h3>Nothing matches</h3>
+              <p>
+                {total > shown
+                  ? "Try a different search or filter, or load older elections below."
+                  : "Try a different search or filter."}
+              </p>
+            </div>
+          )}
 
-      {total > shown && (
-        <p>
-          <button onClick={() => setShown(shown + PAGE_SIZE)} disabled={loading}>
-            Show older elections
-          </button>
-        </p>
+          <ul className="election-grid">
+            {visible.map((e) => (
+              <li key={e.id}>
+                <Link href={`/elections/${e.id}`} className="election-card">
+                  <span className="election-card-title">{e.title}</span>
+                  <span className="election-card-meta">
+                    <span>
+                      {e.candidateCount} candidates, by <span className="mono">{shortAddress(e.creator)}</span>
+                    </span>
+                    <StateBadge state={e.state} />
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+
+          {total > shown && (
+            <p style={{ marginTop: 20 }}>
+              <button onClick={() => setShown(shown + PAGE_SIZE)} disabled={loading}>
+                Show older elections
+              </button>
+            </p>
+          )}
+        </>
       )}
     </main>
   );

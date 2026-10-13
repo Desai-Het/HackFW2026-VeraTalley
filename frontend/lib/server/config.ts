@@ -1,0 +1,134 @@
+import { Contract, JsonRpcProvider, Network, NonceManager, Wallet, getAddress, isAddress, parseUnits } from "ethers";
+import factoryAbi from "../abi/ElectionFactory.abi.json";
+import registryAbi from "../abi/VoterRegistry.abi.json";
+import ballotAbi from "../abi/ElectionBallot.abi.json";
+
+/** Server-side settings. Everything secret lives in environment variables and is only ever read
+ *  here, in code that runs on the server. None of these names start with NEXT_PUBLIC_, so Next.js
+ *  never ships them to the browser. */
+
+export class ApiError extends Error {
+  constructor(message: string, public status = 400) {
+    super(message);
+  }
+}
+
+const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://rpc-amoy.polygon.technology/";
+export const CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID || 80002);
+const FACTORY_ADDRESS = process.env.NEXT_PUBLIC_ELECTION_FACTORY_ADDRESS || "";
+
+let provider: JsonRpcProvider | null = null;
+export function serverProvider(): JsonRpcProvider {
+  if (!provider) provider = new JsonRpcProvider(RPC_URL, Network.from(CHAIN_ID), { staticNetwork: true });
+  return provider;
+}
+
+let relayer: NonceManager | null = null;
+let relayerAddr = "";
+/** The signer that pays gas for voters. Use a dedicated throwaway wallet with a small balance.
+ *  Wrapped in a NonceManager because the provider caches its transaction count for a moment:
+ *  without it, a vote sent right after a confirmed claim reuses the old nonce and fails. */
+export function relayerWallet(): NonceManager {
+  const key = process.env.RELAYER_PRIVATE_KEY;
+  if (!key) throw new ApiError("Gasless voting is not set up on this server.", 503);
+  if (!relayer) {
+    const wallet = new Wallet(key, serverProvider());
+    relayerAddr = wallet.address;
+    relayer = new NonceManager(wallet);
+  }
+  return relayer;
+}
+
+export function relayerAddress(): string {
+  relayerWallet();
+  return relayerAddr;
+}
+
+export function inviteSecret(): string {
+  const secret = process.env.INVITE_SECRET;
+  if (!secret || secret.length < 16) throw new ApiError("Invites are not set up on this server.", 503);
+  return secret;
+}
+
+export function inviteDelivery(): "email" | "links" {
+  return process.env.INVITE_DELIVERY === "links" ? "links" : "email";
+}
+
+export type ResolvedElection = { creator: string; registry: string; ballot: string };
+
+/** Looks the election up in the factory, so the relayer can only ever be pointed at contracts
+ *  that VeraTally itself created - never at an arbitrary address a caller supplies. */
+export async function resolveElection(electionId: unknown): Promise<ResolvedElection> {
+  if (typeof electionId !== "number" || !Number.isInteger(electionId) || electionId < 0) {
+    throw new ApiError("Unknown election.");
+  }
+  if (!isAddress(FACTORY_ADDRESS)) throw new ApiError("This server is not connected to a factory.", 503);
+  const factory = new Contract(FACTORY_ADDRESS, factoryAbi, serverProvider());
+  try {
+    const [creator, registry, ballot] = await factory.getElection(electionId);
+    return { creator: getAddress(creator), registry: getAddress(registry), ballot: getAddress(ballot) };
+  } catch {
+    throw new ApiError("Unknown election.");
+  }
+}
+
+export function registryAt(address: string, runner: NonceManager | JsonRpcProvider = serverProvider()): Contract {
+  return new Contract(address, registryAbi, runner);
+}
+export function ballotAt(address: string, runner: NonceManager | JsonRpcProvider = serverProvider()): Contract {
+  return new Contract(address, ballotAbi, runner);
+}
+
+/** Amoy rejects transactions that tip less than about 25 gwei, and public RPCs sometimes
+ *  suggest less. Floor the tip so relayed transactions are not stuck. */
+export async function feeOverrides() {
+  const fees = await serverProvider().getFeeData();
+  if (CHAIN_ID !== 80002) return {};
+  const floor = parseUnits("30", "gwei");
+  const tip = fees.maxPriorityFeePerGas && fees.maxPriorityFeePerGas > floor ? fees.maxPriorityFeePerGas : floor;
+  const base = fees.maxFeePerGas ?? floor * 2n;
+  return { maxPriorityFeePerGas: tip, maxFeePerGas: base > tip * 2n ? base : tip * 2n };
+}
+
+// One transaction at a time from the relayer wallet, so simultaneous voters cannot collide on
+// the same nonce. Fine for one server instance; a multi-instance deployment would need a real
+// queue.
+let tail: Promise<unknown> = Promise.resolve();
+export function enqueue<T>(job: () => Promise<T>): Promise<T> {
+  const run = tail.then(job, job);
+  tail = run.catch(() => undefined);
+  return run;
+}
+
+// Small in-memory rate limit (per client IP and overall). Best effort: it resets on restart and
+// is per server instance, which is enough to stop a casual script from draining the relayer.
+const hits = new Map<string, number[]>();
+export function rateLimit(key: string, max: number, windowMs: number): void {
+  const now = Date.now();
+  const recent = (hits.get(key) || []).filter((t) => now - t < windowMs);
+  if (recent.length >= max) throw new ApiError("Too many requests. Please wait a moment and try again.", 429);
+  recent.push(now);
+  hits.set(key, recent);
+  if (hits.size > 5000) hits.clear();
+}
+
+export function clientKey(req: Request): string {
+  const fwd = req.headers.get("x-forwarded-for");
+  return (fwd ? fwd.split(",")[0].trim() : "local") || "local";
+}
+
+/** Plain-language message for an error, in the same wording the contracts use. */
+export function reasonFrom(err: any): string {
+  if (err instanceof ApiError) return err.message;
+  const raw: string[] = [err?.reason, err?.shortMessage, err?.info?.error?.message, err?.message].filter(
+    (m): m is string => typeof m === "string"
+  );
+  for (const m of raw) {
+    const match = m.match(/VeraTally: ([^"]+?)(?:"|$)/);
+    if (match) {
+      const reason = match[1].trim();
+      return reason.charAt(0).toUpperCase() + reason.slice(1) + ".";
+    }
+  }
+  return "Something went wrong. Please try again.";
+}

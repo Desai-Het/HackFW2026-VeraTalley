@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import ConfigNotice from "@/components/ConfigNotice";
 import ElectionView from "@/components/ElectionView";
 import { factoryConfigured, getElectionFactory, getReadProvider } from "@/lib/contracts";
 import { isUnknownElectionError } from "@/lib/elections";
@@ -49,10 +49,7 @@ export default function ElectionPage() {
     return (
       <main>
         <h1>Election</h1>
-        <div className="status-banner error">
-          This app isn&apos;t pointed at an election factory yet. Set NEXT_PUBLIC_ELECTION_FACTORY_ADDRESS in
-          frontend/.env.local, then restart the app.
-        </div>
+        <ConfigNotice />
       </main>
     );
   }
@@ -68,7 +65,7 @@ export default function ElectionPage() {
       <main>
         <h1>Election not found</h1>
         <p>
-          There is no election with that number. See <Link href="/elections">all elections</Link>.
+          There is no election with that number. Check the link, or pick one from the elections list.
         </p>
       </main>
     );

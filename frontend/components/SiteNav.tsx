@@ -1,15 +1,39 @@
-import Link from "next/link";
+"use client";
 
-/** Site-wide navigation. The home page (the single demo election from the env file) is left as
- *  it was; the other two links lead to the factory-based pages. */
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+/** Site header. Each destination is linked once: the landing page already carries the two main
+ *  actions in its hero, so there the header shows only the brand; on every other page it offers
+ *  the election list and the create action (hidden on the create page itself). */
 export default function SiteNav() {
+  const pathname = usePathname() || "/";
+  const onHome = pathname === "/";
+  const onCreate = pathname === "/elections/create";
+  const onList = pathname === "/elections";
+
   return (
-    <nav className="site-nav" aria-label="Main">
-      <Link href="/" className="site-nav-brand">
-        VeraTally
-      </Link>
-      <Link href="/elections">All elections</Link>
-      <Link href="/elections/create">Create an election</Link>
-    </nav>
+    <header className="site-header">
+      <nav className="site-header-inner" aria-label="Main">
+        <Link href="/" className="site-brand">
+          <span className="brand-mark" aria-hidden="true" />
+          VeraTally
+        </Link>
+        {!onHome && (
+          <>
+            {!onList && (
+              <Link href="/elections" className="site-nav-link">
+                Elections
+              </Link>
+            )}
+            {!onCreate && (
+              <Link href="/elections/create" className="btn primary btn-sm">
+                Create election
+              </Link>
+            )}
+          </>
+        )}
+      </nav>
+    </header>
   );
 }

@@ -2,16 +2,32 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { BALLOT_STATE_LABELS, factoryConfigured, getElectionFactory, getReadProvider } from "@/lib/contracts";
+import ConfigNotice from "@/components/ConfigNotice";
+import StateBadge from "@/components/StateBadge";
+import { factoryConfigured, getElectionFactory, getReadProvider } from "@/lib/contracts";
 import { fetchElectionSummary, shortAddress, type ElectionSummary } from "@/lib/elections";
 
-const LATEST_COUNT = 5;
+const LATEST_COUNT = 3;
+
+const STEPS = [
+  {
+    title: "Create",
+    text: "Name your election, list the candidates, and add the wallets that are allowed to vote.",
+  },
+  {
+    title: "Vote",
+    text: "Each registered voter picks a candidate once. The vote is recorded on the blockchain.",
+  },
+  {
+    title: "Verify",
+    text: "Anyone can recount the votes from the chain and check the total. No account needed.",
+  },
+];
 
 export default function Landing() {
   const configured = factoryConfigured();
   const [items, setItems] = useState<ElectionSummary[]>([]);
-  const [loading, setLoading] = useState(configured);
-  const [error, setError] = useState(false);
+  const [loaded, setLoaded] = useState(!configured);
 
   useEffect(() => {
     if (!configured) return;
@@ -25,9 +41,8 @@ export default function Landing() {
         if (!cancelled) setItems(rows);
       } catch (err) {
         console.error("Failed to load elections", err);
-        if (!cancelled) setError(true);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setLoaded(true);
       }
     })();
     return () => {
@@ -36,66 +51,110 @@ export default function Landing() {
   }, [configured]);
 
   return (
-    <main>
+    <main className="page-wide">
       <section className="hero">
-        <h1>Vote, then check the result yourself.</h1>
-        <p>
-          VeraTally runs elections on a public blockchain. Every vote is recorded openly, nobody can change the count
-          afterwards, and anyone can recount it without an account.
-        </p>
-        <div className="page-actions">
-          <Link href="/elections/create" className="btn primary">
-            Create an election
-          </Link>
-          <Link href="/elections" className="btn">
-            Browse elections
-          </Link>
+        <div>
+          <h1>Vote, then check the result yourself.</h1>
+          <p className="lede">
+            VeraTally runs elections on a public blockchain. Every vote is recorded openly, nobody can change the count
+            afterwards, and anyone can recount it.
+          </p>
+          <div className="hero-actions">
+            <Link href="/elections/create" className="btn primary btn-lg">
+              Create an election
+            </Link>
+            <Link href="/elections" className="btn btn-lg">
+              Browse elections
+            </Link>
+          </div>
+        </div>
+
+        <div aria-hidden="true">
+          <div className="sample-ballot">
+            <div className="sample-ballot-top">
+              <span className="sample-ballot-title">Club president</span>
+              <span className="badge badge-closed">Closed</span>
+            </div>
+            <div className="sample-row">
+              <div className="sample-row-labels">
+                <span>Ada</span>
+                <span>18</span>
+              </div>
+              <div className="sample-track">
+                <div className="sample-fill" style={{ width: "62%" }} />
+              </div>
+            </div>
+            <div className="sample-row">
+              <div className="sample-row-labels">
+                <span>Grace</span>
+                <span>9</span>
+              </div>
+              <div className="sample-track">
+                <div className="sample-fill dim" style={{ width: "31%" }} />
+              </div>
+            </div>
+            <div className="sample-row">
+              <div className="sample-row-labels">
+                <span>Linus</span>
+                <span>2</span>
+              </div>
+              <div className="sample-track">
+                <div className="sample-fill dim" style={{ width: "7%" }} />
+              </div>
+            </div>
+            <p className="sample-check">Recount matches the contract: 29 of 29 votes</p>
+          </div>
+          <p className="sample-note">Sample ballot, for illustration</p>
         </div>
       </section>
 
+      <section className="section" aria-labelledby="how">
+        <h2 id="how">How it works</h2>
+        <ol className="steps">
+          {STEPS.map((s, i) => (
+            <li key={s.title} className="step">
+              <span className="step-num">{i + 1}</span>
+              <h3>{s.title}</h3>
+              <p>{s.text}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
       {!configured && (
-        <div className="status-banner error">
-          This app isn&apos;t pointed at an election factory yet. Set NEXT_PUBLIC_ELECTION_FACTORY_ADDRESS in
-          frontend/.env.local, then restart the app.
-        </div>
+        <section className="section">
+          <ConfigNotice />
+        </section>
       )}
 
-      {configured && (
-        <>
-          <h2>Latest elections</h2>
-          {loading && <p>Loading...</p>}
-          {error && (
-            <div className="status-banner error" role="status">
-              Can&apos;t reach the blockchain network right now. Reload the page to try again.
-            </div>
-          )}
-          {!loading && !error && items.length === 0 && <p>No elections yet. Create the first one.</p>}
-          <ul className="election-list">
-            {items.map((e) => {
-              const label = BALLOT_STATE_LABELS[e.state] ?? "Unknown";
-              return (
-                <li key={e.id}>
-                  <Link href={`/elections/${e.id}`} className="election-row">
+      {configured && loaded && items.length > 0 && (
+        <section className="section" aria-labelledby="latest">
+          <h2 id="latest">Latest elections</h2>
+          <ul className="election-grid">
+            {items.map((e) => (
+              <li key={e.id}>
+                <Link href={`/elections/${e.id}`} className="election-card">
+                  <span className="election-card-title">{e.title}</span>
+                  <span className="election-card-meta">
                     <span>
-                      <strong>{e.title}</strong>
-                      <br />
-                      <small>
-                        {e.candidateCount} candidates, created by <span className="mono">{shortAddress(e.creator)}</span>
-                      </small>
+                      {e.candidateCount} candidates, by <span className="mono">{shortAddress(e.creator)}</span>
                     </span>
-                    <span className={`badge badge-${label.toLowerCase()}`}>{label}</span>
-                  </Link>
-                </li>
-              );
-            })}
+                    <StateBadge state={e.state} />
+                  </span>
+                </Link>
+              </li>
+            ))}
           </ul>
-          {items.length > 0 && (
-            <p style={{ marginTop: 16 }}>
-              <Link href="/elections">See all elections</Link>
-            </p>
-          )}
-        </>
+        </section>
       )}
+
+      <aside className="honest-note">
+        <h3>Good to know</h3>
+        <p>
+          Votes are public: anyone can see which wallet voted for whom. That makes VeraTally a good fit for open votes
+          among groups that want a result nobody can quietly change, and a poor fit for secret ballots.
+        </p>
+      </aside>
     </main>
   );
 }

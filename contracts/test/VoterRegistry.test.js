@@ -178,7 +178,8 @@ describe("VoterRegistry", function () {
       const writeFunctions = registry.interface.fragments
         .filter((f) => f.type === "function" && f.stateMutability !== "view" && f.stateMutability !== "pure")
         .map((f) => f.name);
-      expect(writeFunctions).to.deep.equal(["registerVoters"]);
+      expect([...writeFunctions].sort()).to.deep.equal(["addInvites", "claimInvite", "linkBallot", "registerVoters"]);
+      expect(writeFunctions.some((n) => /admin|owner|transfer/i.test(n))).to.equal(false);
     });
 
     it("there is no function to remove a voter once registered", async function () {

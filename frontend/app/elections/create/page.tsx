@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import ConfigNotice from "@/components/ConfigNotice";
 import { describeError, factoryConfigured, getElectionFactory } from "@/lib/contracts";
 import {
   MAX_CANDIDATES,
@@ -25,10 +26,7 @@ export default function CreateElectionPage() {
     return (
       <main>
         <h1>Create an election</h1>
-        <div className="status-banner error">
-          This app isn&apos;t pointed at an election factory yet. Set NEXT_PUBLIC_ELECTION_FACTORY_ADDRESS in
-          frontend/.env.local, then restart the app.
-        </div>
+        <ConfigNotice />
       </main>
     );
   }
@@ -65,10 +63,16 @@ export default function CreateElectionPage() {
     }
   }
 
+  const previewNames = candidates.map((c) => c.trim()).filter(Boolean);
+
   return (
-    <main>
-      <h1>Create an election</h1>
-      <p>You will be the only person who can add voters and open or close voting. Candidates cannot be changed afterwards.</p>
+    <main className="page-wide">
+      <div className="page-title-row">
+        <h1>Create an election</h1>
+        <p className="lede">
+          You will be the only person who can add voters and open or close voting. Candidates cannot be changed afterwards.
+        </p>
+      </div>
 
       {walletError && <div className="status-banner error">{walletError}</div>}
       {status && (
@@ -77,69 +81,84 @@ export default function CreateElectionPage() {
         </div>
       )}
 
-      <form onSubmit={submit}>
-        <div className="field">
-          <label htmlFor="title">Election title</label>
-          <input
-            id="title"
-            type="text"
-            value={title}
-            maxLength={MAX_TITLE_LENGTH}
-            onChange={(e) => setTitle(e.target.value)}
-            disabled={busy}
-          />
-        </div>
-
-        <div className="field">
-          <span className="field-label">Candidates</span>
-          <div className="candidate-inputs">
-            {candidates.map((value, i) => (
-              <div key={i} className="candidate-input-row">
-                <input
-                  type="text"
-                  aria-label={`Candidate ${i + 1}`}
-                  value={value}
-                  maxLength={MAX_CANDIDATE_LENGTH}
-                  onChange={(e) => setCandidate(i, e.target.value)}
-                  disabled={busy}
-                />
-                {candidates.length > 2 && (
-                  <button type="button" onClick={() => setCandidates((p) => p.filter((_, j) => j !== i))} disabled={busy} aria-label={`Remove candidate ${i + 1}`}>
-                    Remove
-                  </button>
-                )}
-              </div>
-            ))}
+      <div className="create-layout">
+        <form onSubmit={submit} className="card">
+          <div className="field" style={{ marginTop: 0 }}>
+            <label htmlFor="title">Election title</label>
+            <input
+              id="title"
+              type="text"
+              value={title}
+              maxLength={MAX_TITLE_LENGTH}
+              placeholder="For example: Club president 2026"
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={busy}
+            />
           </div>
-          {candidates.length < MAX_CANDIDATES && (
-            <button type="button" onClick={() => setCandidates((p) => [...p, ""])} disabled={busy}>
-              Add candidate
-            </button>
-          )}
-        </div>
 
-        {account ? (
-          <button type="submit" className="primary" disabled={busy}>
-            {busy ? "Creating..." : "Create election"}
-          </button>
-        ) : (
-          <button type="button" className="primary" onClick={connect}>
-            Connect wallet to create
-          </button>
-        )}
-        {account && (
-          <p>
-            <small>
-              Creating as <span className="mono">{account}</span>
-            </small>
-          </p>
-        )}
-        {hasWallet === false && (
-          <p>
-            <small>You need a wallet such as MetaMask to create an election.</small>
-          </p>
-        )}
-      </form>
+          <div className="field">
+            <span className="field-label">Candidates</span>
+            <div className="candidate-inputs">
+              {candidates.map((value, i) => (
+                <div key={i} className="candidate-input-row">
+                  <input
+                    type="text"
+                    aria-label={`Candidate ${i + 1}`}
+                    value={value}
+                    maxLength={MAX_CANDIDATE_LENGTH}
+                    placeholder={`Candidate ${i + 1}`}
+                    onChange={(e) => setCandidate(i, e.target.value)}
+                    disabled={busy}
+                  />
+                  {candidates.length > 2 && (
+                    <button type="button" onClick={() => setCandidates((p) => p.filter((_, j) => j !== i))} disabled={busy} aria-label={`Remove candidate ${i + 1}`}>
+                      Remove
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {candidates.length < MAX_CANDIDATES && (
+              <button type="button" onClick={() => setCandidates((p) => [...p, ""])} disabled={busy}>
+                Add candidate
+              </button>
+            )}
+          </div>
+
+          <div className="field" style={{ marginBottom: 0 }}>
+            {account ? (
+              <button type="submit" className="primary btn-lg" disabled={busy}>
+                {busy ? "Creating..." : "Create election"}
+              </button>
+            ) : (
+              <button type="button" className="primary btn-lg" onClick={connect}>
+                Connect wallet to create
+              </button>
+            )}
+            <p className="hint" style={{ marginTop: 12 }}>
+              {account ? (
+                <>
+                  Creating as <span className="mono">{account}</span>. You&apos;ll confirm in your wallet.
+                </>
+              ) : hasWallet === false ? (
+                "You need a wallet such as MetaMask to create an election."
+              ) : (
+                "Creating an election is a blockchain transaction, so you'll confirm it in your wallet."
+              )}
+            </p>
+          </div>
+        </form>
+
+        <aside className="card preview-card" aria-label="Ballot preview">
+          <h3>What voters will see</h3>
+          <p className={`preview-title${title.trim() ? "" : " placeholder"}`}>{title.trim() || "Your election title"}</p>
+          {(previewNames.length > 0 ? previewNames : ["Candidate 1", "Candidate 2"]).map((name, i) => (
+            <div key={i} className={`preview-option${previewNames.length > 0 ? "" : " placeholder"}`}>
+              {name}
+            </div>
+          ))}
+        </aside>
+      </div>
     </main>
   );
 }

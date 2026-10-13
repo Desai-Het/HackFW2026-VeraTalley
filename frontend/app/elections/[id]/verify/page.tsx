@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { BALLOT_STATE_LABELS, factoryConfigured, getElectionBallotAt, getElectionFactory, getReadProvider } from "@/lib/contracts";
+import ConfigNotice from "@/components/ConfigNotice";
+import StateBadge from "@/components/StateBadge";
+import { factoryConfigured, getElectionBallotAt, getElectionFactory, getReadProvider } from "@/lib/contracts";
 import { isUnknownElectionError } from "@/lib/elections";
 import { verifyElection, type VerificationResult } from "@/lib/verify";
 
@@ -68,9 +70,7 @@ export default function VerifyPage() {
     return (
       <main>
         <h1>Verify an election</h1>
-        <div className="status-banner error">
-          This app isn&apos;t pointed at an election factory yet. Set NEXT_PUBLIC_ELECTION_FACTORY_ADDRESS in frontend/.env.local.
-        </div>
+        <ConfigNotice />
       </main>
     );
   }
@@ -85,9 +85,7 @@ export default function VerifyPage() {
     return (
       <main>
         <h1>Election not found</h1>
-        <p>
-          See <Link href="/elections">all elections</Link>.
-        </p>
+        <p>There is no election with that number.</p>
       </main>
     );
   }
@@ -106,7 +104,7 @@ export default function VerifyPage() {
     <main>
       <h1>Verify: {phase.title}</h1>
       <p>
-        <span className={`badge badge-${["draft", "open", "closed"][phase.state] ?? "draft"}`}>{BALLOT_STATE_LABELS[phase.state] ?? "Unknown"}</span>{" "}
+        <StateBadge state={phase.state} />{" "}
         <Link href={`/elections/${id}`}>Back to the election</Link>
       </p>
       <p>
