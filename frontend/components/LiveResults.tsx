@@ -1,5 +1,6 @@
 "use client";
 
+import TallyScene from "@/components/TallySceneLazy";
 import { leaders } from "@/lib/verify";
 
 type Props = {
@@ -34,29 +35,16 @@ export default function LiveResults({ title, candidates, tally, state, pulsed, r
       </p>
       <h1 className="live-title">{title || "Election"}</h1>
 
-      <ul className="live-bars">
-        {candidates.map((name, id) => {
-          const count = totals[id] ?? 0;
-          const pct = total > 0 ? (count / total) * 100 : 0;
-          const isWinner = winners.includes(id);
-          const rowClass = ["live-bar-row", pulsed[id] && "live-bar-pulse", isWinner && "live-bar-winner"]
-            .filter(Boolean)
-            .join(" ");
-          return (
-            <li key={id} className={rowClass}>
-              <div className="live-bar-labels">
-                <span className="live-bar-name">
-                  {name}
-                  {isWinner && " ★"}
-                </span>
-                <span className="live-bar-count">{count}</span>
-              </div>
-              <div className="live-bar-track">
-                <div className="live-bar-fill" style={{ width: `${pct}%` }} />
-              </div>
-            </li>
-          );
-        })}
+      <TallyScene candidates={candidates} tally={totals} closed={state === 2} labelAll winners={winners} />
+
+      {/* The same numbers as plain text, for screen readers and for browsers without 3D. */}
+      <ul className="sr-only">
+        {candidates.map((name, id) => (
+          <li key={id}>
+            {name}: {totals[id] ?? 0} {(totals[id] ?? 0) === 1 ? "vote" : "votes"}
+            {winners.includes(id) ? " (winner)" : ""}
+          </li>
+        ))}
       </ul>
 
       <div className="live-summary">

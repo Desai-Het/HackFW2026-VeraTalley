@@ -159,12 +159,55 @@ export default function VerifyPage() {
               ))}
             </tbody>
           </table>
+          {(result.invited > 0 || result.walletRegistered > 0) && (
+            <>
+              <h3>Who could vote, and who did</h3>
+              <table className="verify-table">
+                <tbody>
+                  {result.invited > 0 && (
+                    <>
+                      <tr>
+                        <th scope="row">Invitations issued</th>
+                        <td>{result.invited}</td>
+                      </tr>
+                      <tr>
+                        <th scope="row">Invitations used to register</th>
+                        <td>{result.invitesClaimed}</td>
+                      </tr>
+                      <tr>
+                        <th scope="row">Of those, voted</th>
+                        <td>{result.invitedVoted}</td>
+                      </tr>
+                    </>
+                  )}
+                  {result.walletRegistered > 0 && (
+                    <tr>
+                      <th scope="row">Added directly by wallet address</th>
+                      <td>{result.walletRegistered}</td>
+                    </tr>
+                  )}
+                  <tr>
+                    <th scope="row">Total votes recorded</th>
+                    <td>{result.totalVotesCast}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p className="hint">
+                Compare these with your attendance list. The voter list is frozen once voting opens, so the number of
+                invitations cannot grow during the vote. If more votes were recorded than people who attended, ask why.
+              </p>
+            </>
+          )}
           <p className="hint">
             {result.totalVotesCast} {result.totalVotesCast === 1 ? "vote" : "votes"} from {result.registeredVoters}{" "}
             registered {result.registeredVoters === 1 ? "voter" : "voters"}. Checked as of block {result.atBlock}.
           </p>
         </section>
       )}
+
+      <p className="hint">
+        Voted and have your transaction ID? <Link href="/check">Check where your vote went</Link>.
+      </p>
 
       <p>
         <small>

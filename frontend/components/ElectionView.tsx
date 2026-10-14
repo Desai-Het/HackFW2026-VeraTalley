@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import AdminPanel from "@/components/AdminPanel";
 import CandidateList from "@/components/CandidateList";
+import TallyScene from "@/components/TallySceneLazy";
 import StateBadge from "@/components/StateBadge";
 import { describeError, getElectionBallotAt, getReadProvider, getVoterRegistryAt } from "@/lib/contracts";
 import { shortAddress } from "@/lib/elections";
@@ -130,6 +131,9 @@ export default function ElectionView({ registryAddress, ballotAddress, electionI
 
   const isAdmin = Boolean(account && admin && account.toLowerCase() === admin.toLowerCase());
   const canVote = ballotState === 1 && Boolean(account) && isEligible === true && hasVoted === false;
+  // Someone choosing a candidate needs the selectable list; everyone else gets the 3D results (the
+  // list stays in the page, hidden, for screen readers) so the same numbers are not shown twice.
+  const showScene = ballotState !== 0 && !canVote;
   const explorerBase = getTargetChainId() === AMOY_CHAIN_ID ? "https://amoy.polygonscan.com/tx/" : null;
 
   const manage = isAdmin ? (
@@ -246,12 +250,18 @@ export default function ElectionView({ registryAddress, ballotAddress, electionI
         {status && (
           <div className={`status-banner ${status.kind === "error" ? "error" : status.kind === "success" ? "success" : ""}`} role="status">
             {status.text}
-            {status.kind === "success" && lastTxHash && explorerBase && (
+            {status.kind === "success" && lastTxHash && (
               <>
                 {" "}
-                <a href={`${explorerBase}${lastTxHash}`} target="_blank" rel="noreferrer">
-                  View on Polygonscan
-                </a>
+                <Link href={`/check?tx=${lastTxHash}`}>Check where this vote went</Link>
+                {explorerBase && (
+                  <>
+                    {" · "}
+                    <a href={`${explorerBase}${lastTxHash}`} target="_blank" rel="noreferrer">
+                      View on Polygonscan
+                    </a>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -279,13 +289,20 @@ export default function ElectionView({ registryAddress, ballotAddress, electionI
           {loading ? (
             <p>Loading...</p>
           ) : (
-            <CandidateList
-              candidates={candidates}
-              tally={tally}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              canVote={canVote}
-            />
+            <>
+              {showScene && (
+                <TallyScene candidates={candidates} tally={tally.map((x) => Number(x ?? 0n))} closed={ballotState === 2} />
+              )}
+              <div className={showScene ? "sr-only" : undefined}>
+                <CandidateList
+                  candidates={candidates}
+                  tally={tally}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
+                  canVote={canVote}
+                />
+              </div>
+            </>
           )}
           {account && ballotState === 1 && (
             <div className="ballot-actions">

@@ -132,7 +132,7 @@ export default function ElectionsPage() {
           <ul className="election-grid">
             {visible.map((e) => (
               <li key={e.id}>
-                <Link href={`/elections/${e.id}`} className="election-card">
+                <Link href={`/elections/${e.id}`} className="election-card" data-tilt="6">
                   <span className="election-card-title">{e.title}</span>
                   <span className="election-card-meta">
                     <span>

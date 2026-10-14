@@ -37,6 +37,16 @@ export default function InviteVote({ registryAddress, ballotAddress, electionId 
   const [hasVoted, setHasVoted] = useState(false);
   const [relayStatus, setRelayStatus] = useState<RelayStatus | null>(null);
   const [loadError, setLoadError] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const copyTx = (hash: string) => {
+    navigator.clipboard?.writeText(hash).then(
+      () => {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1800);
+      },
+      () => {}
+    );
+  };
 
   const [selected, setSelected] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
@@ -243,11 +253,21 @@ export default function InviteVote({ registryAddress, ballotAddress, electionId 
             <dd className="mono">{shortAddress(invite.voter)}</dd>
             {found && (
               <>
-                <dt>Transaction</dt>
-                <dd className="mono">{shortAddress(found.txHash)}</dd>
+                <dt>Transaction ID</dt>
+                <dd className="mono tx-id">
+                  {found.txHash}
+                  <button type="button" className="btn btn-sm copy-btn" onClick={() => copyTx(found.txHash)}>
+                    {copied ? "Copied" : "Copy"}
+                  </button>
+                </dd>
               </>
             )}
           </dl>
+          <p>
+            <Link className="btn primary" href={`/check?tx=${found?.txHash ?? ""}`}>
+              Check where my vote went
+            </Link>
+          </p>
           {(txUrl || addrUrl) && (
             <p className="hint">
               Don&apos;t take our word for it. Check it yourself on the public block explorer:{" "}
@@ -266,7 +286,8 @@ export default function InviteVote({ registryAddress, ballotAddress, electionId 
             </p>
           )}
           <p className="hint">
-            Everyone can see how each anonymous ID voted, but nothing public links an ID to a person.{" "}
+            Everyone can see how each anonymous voter ID voted. Outsiders can&apos;t tell who an ID belongs to, but the
+            organizer&apos;s voting site, which sent your invitation, could work it out. This is not a secret ballot.{" "}
             <Link href={`/elections/${electionId}/verify`}>Recount the whole election</Link>
           </p>
         </section>

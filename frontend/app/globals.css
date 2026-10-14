@@ -1554,3 +1554,284 @@ summary:focus-visible {
   padding: 4px 10px;
   font-size: 0.85rem;
 }
+
+/* ======================================================================
+   3D layer: site backdrop, landing hero, vote journey, card tilt
+   ====================================================================== */
+
+/* Behind everything. Fixed, never intercepts the pointer, and the page keeps working without it. */
+.site-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.9;
+  /* Keep the middle of the page calm so text is always easy to read. */
+  -webkit-mask-image: radial-gradient(ellipse 52% 80% at 50% 45%, transparent 0%, rgba(0, 0, 0, 0.35) 55%, #000 100%);
+  mask-image: radial-gradient(ellipse 52% 80% at 50% 45%, transparent 0%, rgba(0, 0, 0, 0.35) 55%, #000 100%);
+}
+
+.site-header {
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+/* Landing hero scene */
+.hero-visual {
+  position: relative;
+  min-width: 0;
+}
+
+.hero-ledger {
+  position: relative;
+  height: 340px;
+  margin: -10px -8px 0;
+  cursor: grab;
+  touch-action: pan-y;
+}
+
+.hero-ledger:active {
+  cursor: grabbing;
+}
+
+.hero-ledger {
+  -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 52%, #000 38%, transparent 96%);
+  mask-image: radial-gradient(ellipse 50% 50% at 50% 52%, #000 38%, transparent 96%);
+}
+
+.hero-ledger.no-webgl {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .hero-ledger {
+    height: 400px;
+  }
+}
+
+.hero-visual .sample-ballot {
+  position: relative;
+  margin-top: -64px;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Vote journey on the check page */
+.journey {
+  position: relative;
+  height: 320px;
+  margin: 18px -8px 8px;
+  border-radius: var(--radius);
+  background:
+    radial-gradient(ellipse at 50% 100%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%),
+    var(--note-bg);
+  overflow: hidden;
+}
+
+.journey.no-webgl {
+  display: none;
+}
+
+.journey-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 3px 9px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  border: 1px solid var(--line);
+  font-size: 0.72rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  will-change: transform;
+}
+
+.journey-label b {
+  font-weight: 650;
+  color: var(--text);
+}
+
+.journey-label span {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.68rem;
+}
+
+.journey-label.chosen {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.journey-label.chosen b,
+.journey-label.chosen span {
+  color: var(--success-text);
+}
+
+.journey-label.dim {
+  opacity: 0.85;
+}
+
+@media (max-width: 640px) {
+  .journey {
+    height: 260px;
+  }
+  .journey-label {
+    font-size: 0.64rem;
+    padding: 2px 6px;
+  }
+}
+
+/* Check page */
+.check-page {
+  max-width: 820px;
+}
+
+.check-form label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.check-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.check-row input {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.check-result {
+  margin-top: 22px;
+}
+
+.check-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 14px 0 10px;
+}
+
+.tx-id {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.copy-btn {
+  flex: none;
+}
+
+/* Cards that lean toward the pointer (see TiltEffect) */
+[data-tilt] {
+  transform: perspective(900px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+  transform-style: preserve-3d;
+  transition: transform 0.18s ease-out, box-shadow 0.18s ease-out, border-color 0.12s;
+  will-change: transform;
+  position: relative;
+}
+
+[data-tilt][data-tilting] {
+  transition: transform 0.06s linear, box-shadow 0.18s ease-out, border-color 0.12s;
+  box-shadow: 0 18px 40px -18px rgba(20, 22, 20, 0.35);
+}
+
+[data-tilt]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+  background: radial-gradient(260px circle at var(--glow-x, 50%) var(--glow-y, 50%), color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%);
+}
+
+[data-tilt][data-tilting]::after {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-tilt] {
+    transform: none !important;
+    transition: none;
+  }
+  .site-backdrop {
+    opacity: 0.7;
+  }
+}
+
+.tally-scene {
+  height: 300px;
+  margin: 8px -8px 16px;
+  cursor: grab;
+  touch-action: pan-y;
+}
+
+.tally-scene:active {
+  cursor: grabbing;
+}
+
+.live-results .tally-scene {
+  height: min(42vh, 380px);
+}
+
+.tally-label b {
+  max-width: 14ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Small screens: keep the 3D labels short so they never pile up. */
+.journey.compact:not(.tally-scene) .journey-label {
+  font-size: 0.62rem;
+  padding: 2px 6px;
+}
+
+.journey.compact:not(.tally-scene) .journey-label span {
+  display: none;
+}
+
+.journey.compact:not(.tally-scene) .journey-label.chosen span {
+  display: block;
+}
+
+.journey.compact:not(.tally-scene) .journey-label.dim {
+  display: none;
+}
+
+.site-nav-link,
+.site-header .btn {
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .site-header-inner {
+    flex-wrap: wrap;
+    gap: 8px 16px;
+  }
+  .site-brand {
+    flex: 1 0 100%;
+  }
+  .site-header .btn-sm {
+    margin-left: auto;
+  }
+}
+
+.live-results .tally-scene {
+  height: min(52vh, 460px);
+}

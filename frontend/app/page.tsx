@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import ConfigNotice from "@/components/ConfigNotice";
 import StateBadge from "@/components/StateBadge";
+import HeroLedger from "@/components/HeroLedgerLazy";
 import { factoryConfigured, getElectionFactory, getReadProvider } from "@/lib/contracts";
 import { fetchElectionSummary, shortAddress, type ElectionSummary } from "@/lib/elections";
 
@@ -69,8 +70,9 @@ export default function Landing() {
           </div>
         </div>
 
-        <div aria-hidden="true">
-          <div className="sample-ballot">
+        <div className="hero-visual" aria-hidden="true">
+          <HeroLedger />
+          <div className="sample-ballot" data-tilt="8">
             <div className="sample-ballot-top">
               <span className="sample-ballot-title">Club president</span>
               <span className="badge badge-closed">Closed</span>
@@ -104,7 +106,6 @@ export default function Landing() {
             </div>
             <p className="sample-check">Recount matches the contract: 29 of 29 votes</p>
           </div>
-          <p className="sample-note">Sample ballot, for illustration</p>
         </div>
       </section>
 
@@ -112,7 +113,7 @@ export default function Landing() {
         <h2 id="how">How it works</h2>
         <ol className="steps">
           {STEPS.map((s, i) => (
-            <li key={s.title} className="step">
+            <li key={s.title} className="step" data-tilt="7">
               <span className="step-num">{i + 1}</span>
               <h3>{s.title}</h3>
               <p>{s.text}</p>
@@ -133,7 +134,7 @@ export default function Landing() {
           <ul className="election-grid">
             {items.map((e) => (
               <li key={e.id}>
-                <Link href={`/elections/${e.id}`} className="election-card">
+                <Link href={`/elections/${e.id}`} className="election-card" data-tilt="6">
                   <span className="election-card-title">{e.title}</span>
                   <span className="election-card-meta">
                     <span>

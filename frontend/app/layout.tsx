@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import SiteNav from "@/components/SiteNav";
+import Backdrop from "@/components/Backdrop";
+import TiltEffect from "@/components/TiltEffect";
 
 export const metadata: Metadata = {
   title: "VeraTally",
@@ -11,6 +13,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
+        <Backdrop />
+        <TiltEffect />
         <SiteNav />
         {children}
         <footer className="site-footer">

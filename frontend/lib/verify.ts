@@ -10,6 +10,14 @@ export type VerificationResult = {
   recountedTally: number[];
   totalVotesCast: number;
   registeredVoters: number;
+  /** Invitations recorded on-chain, counted from InviteAdded events. */
+  invited: number;
+  /** Invitations that were used to register a voter, counted from InviteClaimed events. */
+  invitesClaimed: number;
+  /** Of the people who registered through an invite, how many have voted. */
+  invitedVoted: number;
+  /** Voters the organizer added directly by wallet address (not through an invite). */
+  walletRegistered: number;
   /** One entry per problem found. Empty means every check passed. */
   problems: string[];
   tallyMatches: boolean;
@@ -68,9 +76,11 @@ export async function verifyElection(registryAddress: string, ballotAddress: str
     findDeploymentBlock(provider, ballotAddress, atBlock),
     findDeploymentBlock(provider, registryAddress, atBlock),
   ]);
-  const [voteLogs, registeredLogs] = await Promise.all([
+  const [voteLogs, registeredLogs, inviteAddedLogs, inviteClaimedLogs] = await Promise.all([
     queryAll(ballot, "VoteCast", ballotFrom, atBlock),
     queryAll(registry, "VoterRegistered", registryFrom, atBlock),
+    queryAll(registry, "InviteAdded", registryFrom, atBlock),
+    queryAll(registry, "InviteClaimed", registryFrom, atBlock),
   ]);
 
   const registered = new Set(registeredLogs.map((l) => String(l.args.voter).toLowerCase()));
@@ -91,6 +101,20 @@ export async function verifyElection(registryAddress: string, ballotAddress: str
     recounted[id] += 1;
   }
 
+  // Invites: recount them from events too, and check the contract's own counters agree.
+  const claimedVoters = new Set(inviteClaimedLogs.map((l) => String(l.args.voter).toLowerCase()));
+  const invitedVoted = [...claimedVoters].filter((v) => seen.has(v)).length;
+  const [reportedInvited, reportedClaimed] = await Promise.all([
+    registry.inviteCount({ blockTag: atBlock }) as Promise<bigint>,
+    registry.inviteClaimedCount({ blockTag: atBlock }) as Promise<bigint>,
+  ]);
+  if (BigInt(inviteAddedLogs.length) !== reportedInvited || BigInt(inviteClaimedLogs.length) !== reportedClaimed) {
+    problems.push("The invitation counts rebuilt from events do not match the counts the contract reports.");
+  }
+  if (inviteClaimedLogs.length > inviteAddedLogs.length) {
+    problems.push("More invitations were used than were ever issued.");
+  }
+
   const tallyMatches = candidates.every((_, i) => BigInt(recounted[i]) === reportedTally[i]);
   if (!tallyMatches) problems.push("The recounted votes do not match the tally the contract reports.");
 
@@ -101,6 +125,10 @@ export async function verifyElection(registryAddress: string, ballotAddress: str
     recountedTally: recounted,
     totalVotesCast: voteLogs.length,
     registeredVoters: registered.size,
+    invited: inviteAddedLogs.length,
+    invitesClaimed: inviteClaimedLogs.length,
+    invitedVoted,
+    walletRegistered: Math.max(0, registered.size - claimedVoters.size),
     problems,
     tallyMatches,
   };

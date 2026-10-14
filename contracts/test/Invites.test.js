@@ -279,6 +279,45 @@ describe("Invites and signed votes", function () {
     });
   });
 
+  describe("signature edge cases", function () {
+    const N = BigInt("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");
+
+    async function validClaim() {
+      const f = await withInvites();
+      const p = f.people[0];
+      const sig = await signClaim(p.invite, f.registry, p.voter.address);
+      return { f, p, sig };
+    }
+    // Rebuilds a 65-byte signature from parts, so a test can alter one piece.
+    const build = (r, sBig, v) =>
+      ethers.concat([r, ethers.zeroPadValue(ethers.toBeHex(sBig), 32), ethers.toBeHex(v, 1)]);
+
+    it("accepts the 0/1 form of v as well as 27/28", async function () {
+      const { f, p, sig } = await validClaim();
+      const parsed = ethers.Signature.from(sig);
+      const alt = build(parsed.r, BigInt(parsed.s), parsed.yParity); // v = 0 or 1
+      await f.registry.claimInvite(p.voter.address, alt);
+      expect(await f.registry.isEligible(p.voter.address)).to.equal(true);
+    });
+    it("rejects a signature whose v is not 27 or 28", async function () {
+      const { f, p, sig } = await validClaim();
+      const parsed = ethers.Signature.from(sig);
+      await expect(f.registry.claimInvite(p.voter.address, build(parsed.r, BigInt(parsed.s), 29))).to.be.revertedWith(
+        "VeraTally: invalid invite"
+      );
+    });
+    it("rejects the malleated twin of a valid signature (high s)", async function () {
+      const { f, p, sig } = await validClaim();
+      const parsed = ethers.Signature.from(sig);
+      // (r, n - s, flipped v) recovers the same signer on a naive check; ours must refuse it.
+      const twin = build(parsed.r, N - BigInt(parsed.s), parsed.v === 27 ? 28 : 27);
+      await expect(f.registry.claimInvite(p.voter.address, twin)).to.be.revertedWith("VeraTally: invalid invite");
+      // and the original still works, so the invite was not burned by the rejected twin
+      await f.registry.claimInvite(p.voter.address, sig);
+      expect(await f.registry.isEligible(p.voter.address)).to.equal(true);
+    });
+  });
+
   describe("end to end", function () {
     it("three people claim and vote through a relayer; tally and counts add up", async function () {
       const f = await withInvites();

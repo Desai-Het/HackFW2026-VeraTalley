@@ -26,6 +26,9 @@ export default function SiteNav() {
                 Elections
               </Link>
             )}
+            <Link href="/check" className="site-nav-link">
+              Check a vote
+            </Link>
             {!onCreate && (
               <Link href="/elections/create" className="btn primary btn-sm">
                 Create election
