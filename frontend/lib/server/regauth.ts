@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { verifyMessage } from "ethers";
 import { SESSION_MAX_AGE_MS, loginMessage } from "../registration";
-import { ADMIN_MESSAGE_MAX_AGE_MS } from "../invite";
+import { ADMIN_MESSAGE_MAX_AGE_MS, CODE_ALPHABET } from "../invite";
 import { ApiError, expectedSite, inviteSecret, registryAt, requireOrganiser, type ResolvedElection } from "./config";
 import { electionKey } from "./regstore";
 
@@ -15,8 +15,6 @@ function mac(registry: string, admin: string, exp: number): string {
     .digest("hex");
 }
 
-const KEY_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
 /** The secret in the QR code's address. Derived, not stored: raising the election's
  *  `linkVersion` changes it. Only people who scanned the code (or were sent the link) know it,
  *  so strangers cannot register just by guessing /register/1, /register/2... */
@@ -25,7 +23,7 @@ export function linkKey(registry: string, version: number): string {
     .update(`veratally-reg-link-v1|${electionKey(registry)}|${version}`)
     .digest();
   let out = "";
-  for (let i = 0; i < 16; i++) out += KEY_ALPHABET[digest[i] & 31];
+  for (let i = 0; i < 16; i++) out += CODE_ALPHABET[digest[i] & 31];
   return out;
 }
 
