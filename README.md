@@ -233,6 +233,9 @@ On Render, Railway or Fly.io (or a VPS):
    automatically).
 7. In your RPC provider's dashboard, restrict the API key to your domain.
 
+Running it on a Synology NAS instead? Follow [docs/deploy-synology.md](docs/deploy-synology.md); the
+repository includes a `Dockerfile` and `deploy/synology/docker-compose.yml` for it.
+
 ### 5. Email invitations (optional)
 
 Create a Resend account, verify a sending domain, then set `RESEND_API_KEY`, `EMAIL_FROM` and
