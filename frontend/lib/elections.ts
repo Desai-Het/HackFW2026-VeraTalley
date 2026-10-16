@@ -1,5 +1,6 @@
 import { getAddress, isAddress, ZeroAddress, type Contract, type ContractTransactionReceipt } from "ethers";
 import { getElectionBallotAt, getElectionFactory, getReadProvider } from "./contracts";
+import { clientOrganisers, isClientOrganiser } from "./organisers";
 
 // Limits for what the create/manage forms will send. The contracts themselves enforce only the
 // rules that matter for correctness (at least two candidates, no zero addresses); these keep a
@@ -109,6 +110,29 @@ export type ElectionSummary = {
   state: number;
   candidateCount: number;
 };
+
+/** The newest elections to show, newest first. If organiser wallets are configured, elections
+ *  that strangers created on the public factory are left out, so the lists show only this
+ *  event's elections (they can still be opened by direct link). Looks at most `maxScan` back. */
+export async function fetchVisibleElections(
+  limit: number,
+  maxScan = 300
+): Promise<{ items: ElectionSummary[]; total: number; more: boolean }> {
+  const total = Number(await getElectionFactory(getReadProvider()).electionCount());
+  const filtering = clientOrganisers().length > 0;
+  const items: ElectionSummary[] = [];
+  let next = total - 1;
+  let scanned = 0;
+  while (next >= 0 && items.length <= limit && scanned < maxScan) {
+    const ids: number[] = [];
+    for (let i = 0; i < 12 && next - i >= 0; i++) ids.push(next - i);
+    next -= ids.length;
+    scanned += ids.length;
+    const rows = await Promise.all(ids.map((id) => fetchElectionSummary(id)));
+    for (const r of rows) if (!filtering || isClientOrganiser(r.creator)) items.push(r);
+  }
+  return { items: items.slice(0, limit), total, more: items.length > limit || next >= 0 };
+}
 
 /** One row of the elections list: factory record plus the few ballot fields worth showing. */
 export async function fetchElectionSummary(id: number): Promise<ElectionSummary> {

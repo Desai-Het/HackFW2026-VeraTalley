@@ -1,4 +1,4 @@
-/* VeraTally - calm, paper-like interface. One accent colour for actions and vote shares. */
+/* VeraTalley - calm, paper-like interface. One accent colour for actions and vote shares. */
 
 :root {
   --bg: #fafaf8;
@@ -1835,3 +1835,29 @@ summary:focus-visible {
 .live-results .tally-scene {
   height: min(52vh, 460px);
 }
+
+/* ---- Registration (public form + organiser screen) ---- */
+.register-form { max-width: 520px; margin-top: 18px; }
+.register-form .optional { color: var(--muted, #888); font-weight: 400; }
+.reg-trap { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.consent { display: flex; gap: 10px; align-items: flex-start; margin: 18px 0; font-size: 0.92rem; line-height: 1.4; cursor: pointer; }
+.consent input { margin-top: 3px; flex: none; }
+.reg-qr { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+.reg-switch { display: flex; gap: 10px; align-items: center; margin: 10px 0; cursor: pointer; }
+.reg-config-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; flex-wrap: wrap; }
+.reg-config-row input[type="text"] { flex: 1 1 180px; min-width: 0; }
+.reg-config-row label { display: flex; gap: 6px; align-items: center; font-size: 0.88rem; white-space: nowrap; }
+.reg-summary { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+.reg-summary span { padding: 4px 10px; border-radius: 999px; font-size: 0.85rem; border: 1px solid var(--line, rgba(128,128,128,.35)); }
+.reg-list { list-style: none; margin: 10px 0; padding: 0; display: grid; gap: 8px; }
+.reg-item { border: 1px solid var(--line, rgba(128,128,128,.3)); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.reg-item.flagged { border-color: #d9a441; }
+.reg-item-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.reg-item-head input { flex: none; }
+.reg-name { font-weight: 600; }
+.reg-pill { font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line, rgba(128,128,128,.4)); }
+.reg-pill.approved { border-color: #3c9a62; }
+.reg-pill.rejected { border-color: #c0504d; }
+.reg-pill.warn { border-color: #d9a441; }
+.reg-extra, .reg-flag { font-size: 0.85rem; opacity: 0.85; }
+.reg-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }

@@ -2,6 +2,7 @@ import { Contract, JsonRpcProvider, Network, NonceManager, Wallet, getAddress, i
 import factoryAbi from "../abi/ElectionFactory.abi.json";
 import registryAbi from "../abi/VoterRegistry.abi.json";
 import ballotAbi from "../abi/ElectionBallot.abi.json";
+import { parseOrganisers } from "../organisers";
 
 /** Server-side settings. Everything secret lives in environment variables and is only ever read
  *  here, in code that runs on the server. None of these names start with NEXT_PUBLIC_, so Next.js
@@ -13,12 +14,14 @@ export class ApiError extends Error {
   }
 }
 
-const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://rpc-amoy.polygon.technology/";
 export const CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID || 80002);
+const RPC_URL =
+  process.env.NEXT_PUBLIC_RPC_URL || (CHAIN_ID === 31337 ? "http://127.0.0.1:8545" : "");
 const FACTORY_ADDRESS = process.env.NEXT_PUBLIC_ELECTION_FACTORY_ADDRESS || "";
 
 let provider: JsonRpcProvider | null = null;
 export function serverProvider(): JsonRpcProvider {
+  if (!RPC_URL) throw new ApiError("The server has no RPC URL configured (NEXT_PUBLIC_RPC_URL).", 500);
   if (!provider) provider = new JsonRpcProvider(RPC_URL, Network.from(CHAIN_ID), { staticNetwork: true });
   return provider;
 }
@@ -72,6 +75,43 @@ export async function resolveElection(electionId: unknown): Promise<ResolvedElec
   }
 }
 
+/** Read at request time (a computed key stops the bundler freezing it at build time), so the
+ *  list can be changed with a restart instead of a rebuild. */
+function organiserList(): string[] {
+  const name = ["NEXT_PUBLIC", "ORGANISER_WALLETS"].join("_");
+  return parseOrganisers(process.env[name]);
+}
+
+/** Only elections created by an organiser wallet may use this server's relayer, invitation
+ *  emails and registration forms. Without this, anyone could create an election on the public
+ *  factory and then spend this server's gas money and send email from its address. */
+export function requireOrganiser(election: ResolvedElection): void {
+  const list = organiserList();
+  if (list.length === 0) {
+    if (CHAIN_ID === 31337) return; // local test chain: no allowlist needed
+    throw new ApiError("This server has no organiser wallets set up (NEXT_PUBLIC_ORGANISER_WALLETS).", 503);
+  }
+  if (!list.includes(election.creator.toLowerCase())) {
+    throw new ApiError("This website does not serve that election.", 403);
+  }
+}
+
+/** The website address a signed request must have been made for (host and port). A signature
+ *  made on some other website is refused, so a look-alike site cannot trick an organiser into
+ *  signing something that works here. */
+export function expectedSite(req: Request): string {
+  const configured = process.env.PUBLIC_BASE_URL;
+  if (configured) {
+    try {
+      return new URL(configured).host.toLowerCase();
+    } catch {
+      // fall through to the request's own host
+    }
+  }
+  const fwd = req.headers.get("x-forwarded-host");
+  return (fwd ? fwd.split(",")[0].trim() : req.headers.get("host") || new URL(req.url).host).toLowerCase();
+}
+
 export function registryAt(address: string, runner: NonceManager | JsonRpcProvider = serverProvider()): Contract {
   return new Contract(address, registryAbi, runner);
 }
@@ -100,21 +140,33 @@ export function enqueue<T>(job: () => Promise<T>): Promise<T> {
   return run;
 }
 
-// Small in-memory rate limit (per client IP and overall). Best effort: it resets on restart and
-// is per server instance, which is enough to stop a casual script from draining the relayer.
+// Small in-memory rate limit. Best effort: it resets on restart and is per server instance,
+// which is enough to stop a casual script from draining the relayer or flooding the forms.
 const hits = new Map<string, number[]>();
+let lastSweep = 0;
 export function rateLimit(key: string, max: number, windowMs: number): void {
   const now = Date.now();
   const recent = (hits.get(key) || []).filter((t) => now - t < windowMs);
   if (recent.length >= max) throw new ApiError("Too many requests. Please wait a moment and try again.", 429);
   recent.push(now);
   hits.set(key, recent);
-  if (hits.size > 5000) hits.clear();
+  // Housekeeping: drop idle keys. Never wipe the whole table: that would let an attacker reset
+  // everyone's limits just by sending lots of different keys.
+  if (hits.size > 5000 && now - lastSweep > 10_000) {
+    lastSweep = now;
+    for (const [k, times] of hits) if (now - times[times.length - 1] > 3_600_000) hits.delete(k);
+  }
 }
 
+/** The caller's address as seen by OUR proxy. X-Forwarded-For is a list, and anything left of
+ *  the entry our own proxy added can be forged by the caller, so we count from the right:
+ *  TRUSTED_PROXY_HOPS (default 1) is how many proxies sit in front of this server. */
 export function clientKey(req: Request): string {
   const fwd = req.headers.get("x-forwarded-for");
-  return (fwd ? fwd.split(",")[0].trim() : "local") || "local";
+  if (!fwd) return "local";
+  const parts = fwd.split(",").map((p) => p.trim()).filter(Boolean);
+  const hops = Math.max(1, Number(process.env.TRUSTED_PROXY_HOPS) || 1);
+  return parts[Math.max(0, parts.length - hops)] || "local";
 }
 
 /** Plain-language message for an error, in the same wording the contracts use. */

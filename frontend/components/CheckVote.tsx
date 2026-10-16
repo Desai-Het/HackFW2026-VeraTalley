@@ -1,5 +1,6 @@
 "use client";
 
+import { APP_NAME } from "@/lib/brand";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -116,7 +117,7 @@ export default function CheckVote() {
       )}
       {phase.kind === "novote" && (
         <div className="status-banner error" role="status">
-          That transaction doesn&apos;t record a vote in any VeraTally election.
+          That transaction doesn&apos;t record a vote in any {APP_NAME} election.
         </div>
       )}
       {phase.kind === "error" && (

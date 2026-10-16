@@ -11,6 +11,8 @@ type Props = {
   /** 0 = Draft, 1 = Open, 2 = Closed */
   state: number;
   onChanged: () => Promise<void> | void;
+  /** Fills the email box (used by the registration list). `n` changes each time so the same text can be loaded again. */
+  prefill?: { text: string; n: number };
 };
 
 type Result = { email: string; status: "sent" | "already-claimed" | "not-registered" | "failed"; link?: string };
@@ -27,12 +29,16 @@ const LABELS: Record<Result["status"], string> = {
  *  signs one short message (free) to prove who they are, puts the invites on-chain, and the
  *  server then emails the links. Safe to repeat: re-sending the same email re-sends the same
  *  link. */
-export default function InvitePanel({ registryAddress, electionId, state, onChanged }: Props) {
+export default function InvitePanel({ registryAddress, electionId, state, onChanged, prefill }: Props) {
   const [raw, setRaw] = useState("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<Status>(null);
   const [results, setResults] = useState<Result[] | null>(null);
   const [counts, setCounts] = useState<{ invited: number; claimed: number } | null>(null);
+
+  useEffect(() => {
+    if (prefill && prefill.n > 0) setRaw(prefill.text);
+  }, [prefill?.n]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const parsed = useMemo(() => parseEmailList(raw), [raw]);
   const tooMany = parsed.valid.length > MAX_INVITES_PER_REQUEST;
@@ -69,7 +75,7 @@ export default function InvitePanel({ registryAddress, electionId, state, onChan
       const signer = await getWalletSigner();
       const issuedAt = Date.now();
       setStatus({ kind: "info", text: "Approve the sign-in request in your wallet. It is free and sends nothing." });
-      const signature = await signer.signMessage(adminMessage("invites", electionId, emails, issuedAt));
+      const signature = await signer.signMessage(adminMessage("invites", electionId, emails, issuedAt, window.location.host.toLowerCase()));
       const auth = { electionId, emails, issuedAt, signature };
 
       if (state === 0) {

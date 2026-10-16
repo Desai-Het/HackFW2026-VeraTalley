@@ -1,4 +1,5 @@
 import { Wallet, keccak256, toUtf8Bytes, type TypedDataDomain } from "ethers";
+import { APP_NAME } from "./brand";
 
 /** Everything both the browser and the server need for the email-invite flow: what an invite
  *  code looks like, how a code becomes a key, and the two messages people sign.
@@ -88,10 +89,11 @@ export const ADMIN_MESSAGE_MAX_AGE_MS = 5 * 60 * 1000;
 
 export type AdminAction = "invites";
 
-export function adminMessage(action: AdminAction, electionId: number, emails: string[], issuedAt: number): string {
+export function adminMessage(action: AdminAction, electionId: number, emails: string[], issuedAt: number, site: string): string {
   const digest = keccak256(toUtf8Bytes(emails.join("\n")));
   return [
-    "VeraTally admin request",
+    `${APP_NAME} admin request`,
+    `Website: ${site}`,
     `Action: ${action}`,
     `Election: ${electionId}`,
     `Emails: ${emails.length} (${digest})`,
@@ -104,6 +106,10 @@ export function adminMessage(action: AdminAction, electionId: number, emails: st
 // ---------------------------------------------------------------------------
 
 const EMAIL_PATTERN = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/;
+
+export function isValidEmail(email: string): boolean {
+  return email.length <= 254 && EMAIL_PATTERN.test(email);
+}
 
 export type ParsedEmails = { valid: string[]; invalid: string[]; duplicates: number };
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { APP_NAME } from "@/lib/brand";
 import { useCallback, useEffect, useState } from "react";
 import CandidateList from "@/components/CandidateList";
 import {
@@ -158,7 +159,7 @@ export default function Home() {
   if (!configured) {
     return (
       <main>
-        <h1>VeraTally</h1>
+        <h1>{APP_NAME}</h1>
         <div className="status-banner error">
           This app isn&apos;t pointed at a deployed election yet. Set NEXT_PUBLIC_VOTER_REGISTRY_ADDRESS
           and NEXT_PUBLIC_ELECTION_BALLOT_ADDRESS in frontend/.env.local - see .env.local.example and the
@@ -176,7 +177,7 @@ export default function Home() {
 
   return (
     <main>
-      <h1>{loading ? "VeraTally" : title || "VeraTally"}</h1>
+      <h1>{loading ? APP_NAME : title || APP_NAME}</h1>
       <p>
         <span className="badge">{stateLabel}</span>
       </p>

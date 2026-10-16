@@ -47,7 +47,12 @@ export default function CreateElectionPage() {
     try {
       const signer = await getWalletSigner();
       const factory = getElectionFactory(signer);
-      const tx = await factory.createElection(t.value, c.cleaned);
+      const tx = await factory.createElection(t.value, c.cleaned, {
+        // This one transaction deploys two contracts (about 2.0M gas). Wallet estimates for
+        // contract-creating-contracts can come out too low on public networks and the transaction
+        // then fails with "Interaction failed". You only pay for gas actually used.
+        gasLimit: 3_500_000n,
+      });
       setStatus({ kind: "info", text: "Creating your election. Waiting for confirmation..." });
       const receipt = await tx.wait();
       const id = parseCreatedElectionId(factory, receipt);

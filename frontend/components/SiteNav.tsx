@@ -1,5 +1,6 @@
 "use client";
 
+import { APP_NAME } from "@/lib/brand";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -17,7 +18,7 @@ export default function SiteNav() {
       <nav className="site-header-inner" aria-label="Main">
         <Link href="/" className="site-brand">
           <span className="brand-mark" aria-hidden="true" />
-          VeraTally
+          {APP_NAME}
         </Link>
         {!onHome && (
           <>

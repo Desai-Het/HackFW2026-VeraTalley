@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import InvitePanel from "@/components/InvitePanel";
-import ShareQrCode from "@/components/ShareQrCode";
+import RegistrationPanel from "@/components/RegistrationPanel";
 import { describeError, getElectionBallotAt, getVoterRegistryAt } from "@/lib/contracts";
 import { MAX_VOTERS_PER_TRANSACTION, parseAddressList } from "@/lib/elections";
 import { getWalletSigner } from "@/lib/useWallet";
@@ -43,6 +43,7 @@ export default function AdminPanel({
   const [status, setStatus] = useState<Status>(null);
   const [confirming, setConfirming] = useState<Confirming>(null);
   const [mode, setMode] = useState<Mode>("email");
+  const [prefill, setPrefill] = useState({ text: "", n: 0 });
 
   const parsed = useMemo(() => parseAddressList(raw), [raw]);
   const tooMany = parsed.valid.length > MAX_VOTERS_PER_TRANSACTION;
@@ -117,9 +118,25 @@ export default function AdminPanel({
         </div>
       )}
 
+      {electionId && state !== 2 && (
+        <div className="field">
+          <StepHead n={numbered ? 1 : undefined} title="Collect registrations (optional)" />
+          <div className={numbered ? "setup-body" : undefined}>
+            <RegistrationPanel
+              electionId={Number(electionId)}
+              state={state}
+              onLoadApproved={(emails) => {
+                setMode("email");
+                setPrefill((p) => ({ text: emails.join("\n"), n: p.n + 1 }));
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {state !== 2 && (
         <div className="field">
-          <StepHead n={numbered ? 1 : undefined} title="Add voters" />
+          <StepHead n={numbered ? 2 : undefined} title="Add voters" />
           <div className={numbered ? "setup-body" : undefined}>
             {electionId && (
               <div className="mode-tabs" role="group" aria-label="How to add voters">
@@ -132,7 +149,7 @@ export default function AdminPanel({
               </div>
             )}
             {electionId && mode === "email" ? (
-              <InvitePanel registryAddress={registryAddress} electionId={Number(electionId)} state={state} onChanged={onChanged} />
+              <InvitePanel registryAddress={registryAddress} electionId={Number(electionId)} state={state} onChanged={onChanged} prefill={prefill} />
             ) : (
               <>
             <label htmlFor="voter-addresses" className="sr-only">
@@ -171,16 +188,6 @@ export default function AdminPanel({
             {state === 1 && <p className="hint">Voting has started, so the voter list is locked.</p>}
               </>
             )}
-          </div>
-        </div>
-      )}
-
-      {electionId && state !== 2 && (
-        <div className="field field-share">
-          <StepHead n={numbered ? 2 : undefined} title="Share the voting link" />
-          <div className={numbered ? "setup-body" : undefined}>
-            <p className="hint">Anyone with this link or QR code can see the ballot. Only invited voters can vote.</p>
-            <ShareQrCode path={`/elections/${electionId}`} shareTitle={`Vote: ${title}`} />
           </div>
         </div>
       )}

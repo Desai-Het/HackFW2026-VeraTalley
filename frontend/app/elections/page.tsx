@@ -1,11 +1,12 @@
 "use client";
 
+import { APP_NAME } from "@/lib/brand";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ConfigNotice from "@/components/ConfigNotice";
 import StateBadge from "@/components/StateBadge";
-import { factoryConfigured, getElectionFactory, getReadProvider } from "@/lib/contracts";
-import { fetchElectionSummary, shortAddress, type ElectionSummary } from "@/lib/elections";
+import { factoryConfigured } from "@/lib/contracts";
+import { fetchVisibleElections, shortAddress, type ElectionSummary } from "@/lib/elections";
 import { useWallet } from "@/lib/useWallet";
 
 const PAGE_SIZE = 24;
@@ -34,12 +35,10 @@ export default function ElectionsPage() {
     if (!configured) return;
     setLoading(true);
     try {
-      const count = Number(await getElectionFactory(getReadProvider()).electionCount());
-      setTotal(count);
-      // Newest first.
-      const ids: number[] = [];
-      for (let i = count - 1; i >= Math.max(0, count - shown); i--) ids.push(i);
-      setItems(await Promise.all(ids.map((id) => fetchElectionSummary(id))));
+      // Newest first. Strangers' elections are left out when organiser wallets are configured.
+      const { items: rows, more } = await fetchVisibleElections(shown);
+      setItems(rows);
+      setTotal(more ? shown + 1 : rows.length);
       setError(false);
     } catch (err) {
       console.error("Failed to load elections", err);
@@ -73,7 +72,7 @@ export default function ElectionsPage() {
     <main className="page-wide">
       <div className="page-title-row">
         <h1>Elections</h1>
-        <p>Every election created on VeraTally, newest first.</p>
+        <p>Every election on {APP_NAME}, newest first.</p>
       </div>
 
       {!configured ? (
