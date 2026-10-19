@@ -11,6 +11,7 @@ export default function SiteNav() {
   const onHome = pathname === "/";
   const onCreate = pathname === "/elections/create";
   const onList = pathname === "/elections";
+  const onVote = /^\/elections\/[^/]+\/vote(\/|$)/.test(pathname);
 
   return (
     <header className="site-header">
@@ -29,7 +30,7 @@ export default function SiteNav() {
             <Link href="/check" className="site-nav-link">
               Check a vote
             </Link>
-            {!onCreate && (
+            {!onCreate && !onVote && (
               <Link href="/elections/create" className="btn primary btn-sm">
                 Create election
               </Link>
