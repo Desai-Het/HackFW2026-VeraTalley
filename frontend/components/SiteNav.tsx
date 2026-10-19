@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import ThemeToggle from "@/components/ThemeToggle";
 
 /** Site header. Each destination is linked once: the landing page already carries the two main
  *  actions in its hero, so there the header shows only the brand; on every other page it offers
@@ -37,6 +38,7 @@ export default function SiteNav() {
             )}
           </>
         )}
+        <ThemeToggle />
       </nav>
     </header>
   );
