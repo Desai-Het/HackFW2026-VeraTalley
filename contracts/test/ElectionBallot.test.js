@@ -205,6 +205,23 @@ describe("ElectionBallot", function () {
       ).to.be.revertedWith("VeraTally: need at least two candidates");
     });
 
+    it("refuses more than 50 candidates, or any text over 200 bytes", async function () {
+      const [admin] = await ethers.getSigners();
+      const VoterRegistry = await ethers.getContractFactory("VoterRegistry");
+      const registry = await VoterRegistry.deploy(admin.address);
+      const reg = await registry.getAddress();
+      const ElectionBallot = await ethers.getContractFactory("ElectionBallot");
+      const many = Array.from({ length: 51 }, (_, n) => "C" + n);
+      await expect(ElectionBallot.deploy("Too many", many, reg, admin.address)).to.be.revertedWith("VeraTally: too many candidates");
+      await expect(ElectionBallot.deploy("x".repeat(201), ["A", "B"], reg, admin.address)).to.be.revertedWith("VeraTally: title is too long");
+      await expect(ElectionBallot.deploy("Long name", ["A", "y".repeat(201)], reg, admin.address)).to.be.revertedWith(
+        "VeraTally: candidate name is too long"
+      );
+      const fifty = Array.from({ length: 50 }, (_, n) => "C" + n);
+      const ok = await ElectionBallot.deploy("x".repeat(200), fifty, reg, admin.address);
+      expect(await ok.candidateCount()).to.equal(50n);
+    });
+
     it("accepts exactly two candidates (the minimum)", async function () {
       const [admin] = await ethers.getSigners();
       const VoterRegistry = await ethers.getContractFactory("VoterRegistry");

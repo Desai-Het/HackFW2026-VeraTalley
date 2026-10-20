@@ -1,0 +1,14 @@
+**/node_modules
+**/.next
+.git
+.github
+contracts
+!contracts/package.json
+docs
+deploy
+**/.env
+**/.env.*
+!**/.env.example
+**/.data
+*.log
+.DS_Store

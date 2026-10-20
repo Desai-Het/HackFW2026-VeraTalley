@@ -12,6 +12,7 @@ import {
 } from "@/lib/server/config";
 import { sendInviteEmail } from "@/lib/server/email";
 import { deriveInviteCode, requireAdmin } from "@/lib/server/invites";
+import { markInvited } from "@/lib/server/regstore";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
       throw new ApiError(`Send at most ${MAX_INVITES_PER_REQUEST} invites at a time.`);
     }
     const election = await resolveElection(electionId);
-    await requireAdmin(body, "invites", election, electionId, emails);
+    await requireAdmin(req, body, "invites", election, electionId, emails);
 
     const registry = registryAt(election.registry);
     const title: string = await ballotAt(election.ballot).title();
@@ -67,6 +68,16 @@ export async function POST(req: Request) {
       } catch {
         results.push({ email, status: "failed" });
       }
+    }
+    // Remember who now has an invitation, so the registration screen can show it. Best effort:
+    // an invite that went out must never be reported as failed because of bookkeeping.
+    try {
+      await markInvited(
+        election.registry,
+        results.filter((r) => r.status === "sent" || r.status === "already-claimed").map((r) => r.email)
+      );
+    } catch {
+      // ignore
     }
     return NextResponse.json({ ok: true, delivery, results });
   } catch (err) {

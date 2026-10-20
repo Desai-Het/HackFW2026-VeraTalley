@@ -3,12 +3,15 @@ node_modules/
 .pnp
 .pnp.js
 
-# Env files - NEVER commit these (NFR-03). Only .env.example files are tracked.
+# Env files - NEVER commit these (NFR-03). Only the *.example files are tracked.
 .env
-.env.local
-.env.*.local
+.env.*
 **/.env
-**/.env.local
+**/.env.*
+!.env.example
+!.env.local.example
+!**/.env.example
+!**/.env.local.example
 
 # Hardhat
 contracts/cache/
@@ -19,6 +22,7 @@ contracts/deployed-addresses.localhost.json
 contracts/deployed-addresses.hardhat.json
 contracts/coverage/
 contracts/coverage.json
+# contracts/deployed-addresses.amoy.json is public information and IS tracked on purpose
 
 # Next.js
 frontend/.next/

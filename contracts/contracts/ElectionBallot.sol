@@ -21,6 +21,11 @@ contract ElectionBallot {
         Closed
     }
 
+    /// @notice Size limits, so nobody can create a huge election whose page is slow to load for
+    ///         everyone who opens it. Far above what the app's own forms allow.
+    uint256 public constant MAX_CANDIDATES = 50;
+    uint256 public constant MAX_TEXT_BYTES = 200;
+
     bytes32 public constant VOTE_TYPEHASH = keccak256("Vote(address voter,uint256 candidateId)");
 
     address public immutable admin;
@@ -50,6 +55,11 @@ contract ElectionBallot {
     ///        cannot be changed later.
     constructor(string memory _title, string[] memory _candidates, address _voterRegistry, address _admin) {
         require(_candidates.length >= 2, "VeraTally: need at least two candidates");
+        require(_candidates.length <= MAX_CANDIDATES, "VeraTally: too many candidates");
+        require(bytes(_title).length <= MAX_TEXT_BYTES, "VeraTally: title is too long");
+        for (uint256 i = 0; i < _candidates.length; i++) {
+            require(bytes(_candidates[i]).length <= MAX_TEXT_BYTES, "VeraTally: candidate name is too long");
+        }
         require(_voterRegistry != address(0), "VeraTally: zero address");
         require(_admin != address(0), "VeraTally: zero address");
 

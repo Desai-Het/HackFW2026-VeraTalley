@@ -11,6 +11,8 @@ type Props = {
   /** 0 = Draft, 1 = Open, 2 = Closed */
   state: number;
   onChanged: () => Promise<void> | void;
+  /** Fills the email box (used by the registration list). `n` changes each time so the same text can be loaded again. */
+  prefill?: { text: string; n: number };
 };
 
 type Result = { email: string; status: "sent" | "already-claimed" | "not-registered" | "failed"; link?: string };
@@ -25,12 +27,16 @@ const LABELS: Record<Result["status"], string> = {
 
 /** Invite voters by email. Each person gets a personal link; they need no wallet. The site records the invites on the blockchain and emails the links. Safe to repeat: re-sending the same email re-sends the same
  *  link. */
-export default function InvitePanel({ registryAddress, electionId, state, onChanged }: Props) {
+export default function InvitePanel({ registryAddress, electionId, state, onChanged, prefill }: Props) {
   const [raw, setRaw] = useState("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<Status>(null);
   const [results, setResults] = useState<Result[] | null>(null);
   const [counts, setCounts] = useState<{ invited: number; claimed: number } | null>(null);
+
+  useEffect(() => {
+    if (prefill && prefill.n > 0) setRaw(prefill.text);
+  }, [prefill?.n]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const parsed = useMemo(() => parseEmailList(raw), [raw]);
   const tooMany = parsed.valid.length > MAX_INVITES_PER_REQUEST;

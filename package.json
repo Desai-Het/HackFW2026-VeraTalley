@@ -1,20 +1,26 @@
 {
-  "name": "veratally-hackfw2026",
+  "name": "veratalley-hackfw2026",
   "private": true,
-  "version": "0.1.0",
-  "description": "VeraTally - HackFW-2026 blockchain entry. A verifiable, allowlist-based election platform on Polygon Amoy: no backend, no admin superuser, immutable contracts.",
+  "version": "0.2.0",
+  "description": "VeraTalley - HackFW-2026 blockchain entry. A verifiable election platform on Polygon Amoy: one vote per eligible voter enforced by immutable contracts, wallet-free voting by email link or QR registration, and a small relayer server that pays the fee but cannot change a vote.",
   "workspaces": [
     "contracts",
     "frontend"
   ],
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
+    "test": "npm run contracts:test",
     "contracts:compile": "npm run compile --workspace=contracts",
     "contracts:test": "npm run test --workspace=contracts",
     "contracts:coverage": "npm run coverage --workspace=contracts",
+    "contracts:node": "npx hardhat node --config contracts/hardhat.config.cjs",
     "contracts:deploy:local": "npm run deploy:local --workspace=contracts",
     "contracts:deploy:amoy": "npm run deploy:amoy --workspace=contracts",
     "frontend:dev": "npm run dev --workspace=frontend",
     "frontend:build": "npm run build --workspace=frontend",
+    "frontend:start": "npm run start --workspace=frontend",
     "frontend:lint": "npm run lint --workspace=frontend"
   },
   "license": "MIT"

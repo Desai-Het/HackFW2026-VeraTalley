@@ -20,7 +20,7 @@ export async function POST(req: Request) {
       throw new ApiError(`Send at most ${MAX_INVITES_PER_REQUEST} invites at a time.`);
     }
     const election = await resolveElection(electionId);
-    await requireAdmin(body, "invites", election, electionId, emails);
+    await requireAdmin(req, body, "invites", election, electionId, emails);
 
     const invites = emails.map((email) => ({
       email,

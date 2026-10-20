@@ -1,7 +1,61 @@
-# VeraTally
+# VeraTalley
 
 [![CI](https://github.com/dojoga1/HackFW2026-VeraTalley/actions/workflows/ci.yml/badge.svg)](https://github.com/dojoga1/HackFW2026-VeraTalley/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Solidity 0.8.24](https://img.shields.io/badge/Solidity-0.8.24-363636)
+![Next.js](https://img.shields.io/badge/Next.js-App%20Router-000000)
+![Network](https://img.shields.io/badge/Network-Polygon%20Amoy-8247e5)
+
+**Elections you can recount yourself.**
+
+VeraTalley is a verifiable election platform built for HackFW-2026 (Open track). Voters and
+observers should not have to trust an organiser's database. VeraTalley runs the election on-chain:
+one vote per eligible voter, enforced by code, so anyone can recount the result with no account and
+no special access.
+
+Voters need no crypto wallet and no coins. The organiser adds voters by email or by sharing a
+registration QR code, each person gets a personal voting link, and a small server pays the network
+fee. The server can refuse a vote but cannot change or forge one, because the contract checks every
+signature itself.
+
+> The product is called **VeraTalley**. Some on-chain strings and internal identifiers still read
+> `VeraTally` (the contract's signing domain and revert messages). They are part of deployed
+> contracts and invite codes, so they were left unchanged on purpose.
+
+## Contents
+
+- [Features](#features)
+- [How it works](#how-it-works)
+- [Quick start: run it locally](#quick-start-run-it-locally)
+- [Deploy to a public network (Polygon Amoy)](#deploy-to-a-public-network-polygon-amoy)
+- [Configuration reference](#configuration-reference)
+- [Security and trust model](#security-and-trust-model)
+- [Project structure](#project-structure)
+- [Development](#development)
+- [Troubleshooting](#troubleshooting)
+- [Documentation, contributing, license](#documentation-contributing-license)
+
+## Features
+
+- **Contracts:** `VoterRegistry`, `ElectionBallot` (a `Draft -> Open -> Closed` state machine, one
+  contest, one vote each), `ElectionFactory` (anyone can create an election and becomes its sole
+  admin) and `SignatureLib` (EIP-712 typed-data signatures). Contracts are immutable: no proxy, no
+  upgrade path, no pause switch.
+- **Voting by email link, no wallet needed.** The voter's browser creates its own key, signs the
+  vote, and a relayer submits it and pays the fee.
+- **Self-registration by QR code.** The organiser shows a QR code; people scan it and register with
+  their name and email. Duplicate or suspicious sign-ups (same device, same network, repeated
+  emails) are flagged for review, and approved people can be invited in one click.
+- **Wallet voting** still works for anyone the organiser adds by wallet address.
+- **The voter list locks when voting opens**, enforced by the contract.
+- **Public verification:** anyone can recount an election from on-chain events and compare it with
+  the contract's own tally. The page also shows invitations issued, used and voted.
+- **Hardened server:** organiser allow-list, signed and site-bound admin requests, rate limiting,
+  request filtering, security headers. See [Security](#security-and-trust-model).
+- **Tests:** 116 Hardhat tests (100% statement, line and function coverage), Slither static
+  analysis with nothing high or medium, and a browser end-to-end run of the whole flow.
+
+## How it works
 
 A verifiable election platform for HackFW-2026 (Open track). The pitch: voters and observers
 shouldn't have to trust an organizer's database. VeraTally runs an election on-chain - one vote per
@@ -74,8 +128,7 @@ Organiser's browser (signed in) ── /api/org/* ── server wallet signs and
    invite to register it as a voter, and signs the vote with it.
 4. The relayer sends both signed messages to the chain and pays the fee. The contract verifies the
    signatures, so a tampered request simply fails.
-5. The voter sees a receipt and can look their vote up again later from the same link, or check it
-   independently on the public block explorer.
+5. The voter gets a receipt. Anyone can recount the election from the public events.
 
 ## Quick start: run it locally
 
@@ -106,29 +159,73 @@ local chain.
 ### 3. Deploy the contracts (terminal 2)
 
 ```bash
-npm ci
-
-# Compile contracts and export their ABIs to frontend/lib/abi/
-npm run contracts:compile
-
-# Run the contract test suite (115 tests)
-npm run contracts:test
-
-# In one terminal: start a local chain (run from inside contracts/, or point --config at it)
-npx hardhat node --config contracts/hardhat.config.cjs
-
-# In another terminal: deploy the factory and a demo election
 npm run contracts:deploy:local
 ```
 
-Copy the example settings file and fill it in:
+Copy the `ElectionFactory` address it prints.
+
+### 4. Configure the app
 
 ```bash
 cp frontend/.env.local.example frontend/.env.local
 ```
 
-For a local chain, set these in `frontend/.env.local`:
+Edit `frontend/.env.local` and set:
 
+```dotenv
+NEXT_PUBLIC_ELECTION_FACTORY_ADDRESS=<address from step 3>
+NEXT_PUBLIC_CHAIN_ID=31337
+NEXT_PUBLIC_RPC_URL=http://127.0.0.1:8545
+RELAYER_PRIVATE_KEY=<private key of "Account #1" from terminal 1>
+INVITE_SECRET=<run: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))">
+INVITE_DELIVERY=links
+```
+
+`INVITE_DELIVERY=links` skips email; the organiser gets copyable links instead.
+
+### 5. Run the app
+
+```bash
+npm run frontend:dev
+```
+
+Open <http://localhost:3000>. Check <http://localhost:3000/api/relay>: it should show `"ok":true`.
+
+### 6. Try it
+
+- **Organiser:** add a network to MetaMask (RPC `http://127.0.0.1:8545`, chain ID `31337`, symbol
+  `ETH`) and import "Account #0" from terminal 1. Create an election, add two or three emails, send
+  the invitations, then open voting.
+- **Voter:** open one of the links in a private window with no wallet, pick a candidate and vote.
+  Reload to see the recorded vote, then open the Verify page and run the recount.
+- **Registration QR:** in the organiser panel, open registration, scan or open the QR link in
+  another window, sign up, and approve it in the list.
+
+## Deploy to a public network (Polygon Amoy)
+
+This puts the contracts on the Polygon Amoy testnet and the app on a public address. It costs
+nothing: Amoy uses free test coins.
+
+### What you need
+
+| Item | Why | Where |
+| --- | --- | --- |
+| Deployer wallet | Deploys the factory. Throwaway, test coins only. | New MetaMask account |
+| Relayer wallet | Pays fees for voters. Throwaway, different from the others. | New MetaMask account |
+| Organiser wallet | Creates and runs elections. Can be the deployer. | MetaMask |
+| Test POL | Fees. About 0.3 POL for the deployer and 0.1-0.5 for the relayer is plenty to start. | An Amoy faucet |
+| Amoy RPC URL | Reads and writes the chain. | Alchemy, QuickNode or dRPC (free tier). Must contain `polygon-amoy`. |
+| A host | Runs the app. See step 4. | Render, Railway, Fly.io or a VPS |
+| Email (optional) | Sends invitations. | [Resend](https://resend.com) with a verified domain |
+
+Never use a wallet that holds real money for any of this.
+
+### 1. Deploy the contracts
+
+```bash
+cp contracts/.env.example contracts/.env
+# edit contracts/.env: AMOY_RPC_URL and PRIVATE_KEY (the deployer wallet)
+npm run contracts:deploy:amoy
 ```
 NEXT_PUBLIC_ELECTION_FACTORY_ADDRESS=<address the deploy script printed>
 NEXT_PUBLIC_CHAIN_ID=31337

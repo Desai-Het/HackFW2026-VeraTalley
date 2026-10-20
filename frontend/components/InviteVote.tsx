@@ -321,7 +321,7 @@ export default function InviteVote({ registryAddress, ballotAddress, electionId 
   }
 
   const relayDown = relayStatus && !relayStatus.ok;
-  const lowFunds = relayStatus && relayStatus.ok && Number(relayStatus.balance) < 0.01;
+  const lowFunds = relayStatus && relayStatus.ok && relayStatus.low;
 
   return (
     <main>

@@ -2,6 +2,7 @@ import { Contract, JsonRpcProvider, Network, NonceManager, Wallet, getAddress, i
 import factoryAbi from "../abi/ElectionFactory.abi.json";
 import registryAbi from "../abi/VoterRegistry.abi.json";
 import ballotAbi from "../abi/ElectionBallot.abi.json";
+import { parseOrganisers } from "../organisers";
 
 /** Server-side settings. Everything secret lives in environment variables and is only ever read
  *  here, in code that runs on the server. None of these names start with NEXT_PUBLIC_, so Next.js
@@ -13,12 +14,14 @@ export class ApiError extends Error {
   }
 }
 
-const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://rpc-amoy.polygon.technology/";
 export const CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID || 80002);
+const RPC_URL =
+  process.env.NEXT_PUBLIC_RPC_URL || (CHAIN_ID === 31337 ? "http://127.0.0.1:8545" : "");
 const FACTORY_ADDRESS = process.env.NEXT_PUBLIC_ELECTION_FACTORY_ADDRESS || "";
 
 let provider: JsonRpcProvider | null = null;
 export function serverProvider(): JsonRpcProvider {
+  if (!RPC_URL) throw new ApiError("The server has no RPC URL configured (NEXT_PUBLIC_RPC_URL).", 500);
   if (!provider) provider = new JsonRpcProvider(RPC_URL, Network.from(CHAIN_ID), { staticNetwork: true });
   return provider;
 }
@@ -150,21 +153,33 @@ export function enqueue<T>(job: () => Promise<T>): Promise<T> {
   return run;
 }
 
-// Small in-memory rate limit (per client IP and overall). Best effort: it resets on restart and
-// is per server instance, which is enough to stop a casual script from draining the relayer.
+// Small in-memory rate limit. Best effort: it resets on restart and is per server instance,
+// which is enough to stop a casual script from draining the relayer or flooding the forms.
 const hits = new Map<string, number[]>();
+let lastSweep = 0;
 export function rateLimit(key: string, max: number, windowMs: number): void {
   const now = Date.now();
   const recent = (hits.get(key) || []).filter((t) => now - t < windowMs);
   if (recent.length >= max) throw new ApiError("Too many requests. Please wait a moment and try again.", 429);
   recent.push(now);
   hits.set(key, recent);
-  if (hits.size > 5000) hits.clear();
+  // Housekeeping: drop idle keys. Never wipe the whole table: that would let an attacker reset
+  // everyone's limits just by sending lots of different keys.
+  if (hits.size > 5000 && now - lastSweep > 10_000) {
+    lastSweep = now;
+    for (const [k, times] of hits) if (now - times[times.length - 1] > 3_600_000) hits.delete(k);
+  }
 }
 
+/** The caller's address as seen by OUR proxy. X-Forwarded-For is a list, and anything left of
+ *  the entry our own proxy added can be forged by the caller, so we count from the right:
+ *  TRUSTED_PROXY_HOPS (default 1) is how many proxies sit in front of this server. */
 export function clientKey(req: Request): string {
   const fwd = req.headers.get("x-forwarded-for");
-  return (fwd ? fwd.split(",")[0].trim() : "local") || "local";
+  if (!fwd) return "local";
+  const parts = fwd.split(",").map((p) => p.trim()).filter(Boolean);
+  const hops = Math.max(1, Number(process.env.TRUSTED_PROXY_HOPS) || 1);
+  return parts[Math.max(0, parts.length - hops)] || "local";
 }
 
 /** Plain-language message for an error, in the same wording the contracts use. */

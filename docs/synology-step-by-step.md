@@ -9,7 +9,7 @@ retry.
 
 ---
 
-## Part A: What the developer (Sneh) must hand over first
+## Part A: What the developer Dhruv must hand over first
 
 The NAS owner should not have to invent any of these. Before starting, you need:
 

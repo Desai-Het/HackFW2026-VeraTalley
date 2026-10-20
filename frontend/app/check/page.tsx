@@ -1,8 +1,9 @@
+import { APP_NAME } from "@/lib/brand";
 import { Suspense } from "react";
 import CheckVote from "@/components/CheckVote";
 
 export const metadata = {
-  title: "Check a vote - VeraTally",
+  title: `Check a vote - ${APP_NAME}`,
   description: "Paste a transaction ID and see which election and candidate that vote was recorded for.",
 };
 

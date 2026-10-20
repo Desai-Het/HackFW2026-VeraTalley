@@ -28,7 +28,7 @@ subtask(TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD).setAction(async ({ solcVersion }) 
   };
 });
 
-const AMOY_RPC_URL = process.env.AMOY_RPC_URL || "https://rpc-amoy.polygon.technology/";
+const AMOY_RPC_URL = process.env.AMOY_RPC_URL || "https://invalid.example/set-AMOY_RPC_URL-in-contracts-env";
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
 // Etherscan's unified V2 API covers Polygon Amoy with a single Etherscan.io key. The old
 // per-explorer config (apiKey: { polygonAmoy: ... }) makes hardhat-verify call Polygonscan's V1
