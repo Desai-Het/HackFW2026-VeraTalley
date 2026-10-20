@@ -830,6 +830,7 @@ summary:focus-visible {
 }
 
 .field input[type="text"],
+.field input[type="password"],
 .field textarea {
   width: 100%;
   font: inherit;

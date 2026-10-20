@@ -86,19 +86,6 @@ export function signVote(
 
 export const ADMIN_MESSAGE_MAX_AGE_MS = 5 * 60 * 1000;
 
-export type AdminAction = "invites";
-
-export function adminMessage(action: AdminAction, electionId: number, emails: string[], issuedAt: number): string {
-  const digest = keccak256(toUtf8Bytes(emails.join("\n")));
-  return [
-    "VeraTally admin request",
-    `Action: ${action}`,
-    `Election: ${electionId}`,
-    `Emails: ${emails.length} (${digest})`,
-    `Issued: ${new Date(issuedAt).toISOString()}`,
-  ].join("\n");
-}
-
 // ---------------------------------------------------------------------------
 // Emails
 // ---------------------------------------------------------------------------
