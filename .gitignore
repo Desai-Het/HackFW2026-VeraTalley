@@ -4,6 +4,8 @@ node_modules/
 .pnp.js
 
 # Env files - NEVER commit these (NFR-03). Only the *.example files are tracked.
+env
+**/env
 .env
 .env.*
 **/.env
@@ -29,6 +31,7 @@ frontend/.next/
 frontend/out/
 frontend/build/
 *.tsbuildinfo
+next16
 
 # Local app data (voter registrations are personal data - never commit)
 .data/

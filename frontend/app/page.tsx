@@ -14,11 +14,11 @@ const LATEST_COUNT = 3;
 const STEPS = [
   {
     title: "Create",
-    text: "Name your election, list the candidates, and add the wallets that are allowed to vote.",
+    text: "Sign in, name your election and list the candidates. Add voters by email, or share a QR code so they can register themselves.",
   },
   {
     title: "Vote",
-    text: "Each registered voter picks a candidate once. The vote is recorded on the blockchain.",
+    text: "Each voter opens their personal link, picks a candidate once, and the vote is recorded on the blockchain. No wallet needed.",
   },
   {
     title: "Verify",

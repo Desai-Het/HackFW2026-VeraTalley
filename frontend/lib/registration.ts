@@ -61,7 +61,6 @@ export const MAX_VALUE_LEN = 200;
 export const MAX_NAME_LEN = 100;
 export const MAX_INTRO_LEN = 300;
 export const MAX_REGISTRATIONS_PER_ELECTION = 5000;
-export const SESSION_MAX_AGE_MS = 30 * 60 * 1000;
 
 /** One key per real mailbox, so the same person cannot register twice with tricks: capital
  *  letters, "+anything" tags, and (for Gmail) dots. "J.Doe+vote@gmail.com" and "jdoe@gmail.com"
@@ -126,17 +125,6 @@ export function domainAllowed(email: string, allowed: string[]): boolean {
   if (allowed.length === 0) return true;
   const domain = email.slice(email.lastIndexOf("@") + 1).toLowerCase();
   return allowed.some((d) => domain === d || domain.endsWith("." + d));
-}
-
-/** What the organiser signs (free, no gas) to open a 30 minute session on the registrations. */
-export function loginMessage(electionId: number, issuedAt: number, site: string): string {
-  return [
-    `${APP_NAME} organiser sign-in`,
-    `Website: ${site}`,
-    "Purpose: view and manage this election's registrations",
-    `Election: ${electionId}`,
-    `Issued: ${new Date(issuedAt).toISOString()}`,
-  ].join("\n");
 }
 
 /** The QR code's address. The secret after "#" never reaches a web server's logs: browsers keep

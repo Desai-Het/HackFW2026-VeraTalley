@@ -1,21 +1,20 @@
 import { NextResponse } from "next/server";
 import { sanitizeConfig, type RegStatus } from "@/lib/registration";
-import { ApiError, clientKey, rateLimit, reasonFrom, requireOrganiser, resolveElection } from "@/lib/server/config";
-import { linkKey, requireSession } from "@/lib/server/regauth";
+import { ApiError, clientKey, rateLimit, reasonFrom } from "@/lib/server/config";
+import { linkKey } from "@/lib/server/regauth";
+import { requireManager } from "@/lib/server/session";
 import { dataOf, electionKey, mutate, publicRecord, read } from "@/lib/server/regstore";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Organiser-only actions on one election's registrations. Every call carries the 30 minute
- *  token from /api/registration/session. */
+/** Actions on one election's registrations. Only a signed-in account that manages the election
+ *  (or the site owner) may use them. */
 export async function POST(req: Request) {
   try {
     rateLimit("regadmin:" + clientKey(req), 60, 60_000);
     const body = await req.json().catch(() => null);
-    const election = await resolveElection(body?.electionId);
-    requireOrganiser(election);
-    requireSession(body?.token, election);
+    const { election } = await requireManager(req, body?.electionId);
     const key = electionKey(election.registry);
     const action = body?.action;
 

@@ -7,7 +7,7 @@ import ConfigNotice from "@/components/ConfigNotice";
 import StateBadge from "@/components/StateBadge";
 import { factoryConfigured } from "@/lib/contracts";
 import { fetchVisibleElections, shortAddress, type ElectionSummary } from "@/lib/elections";
-import { useWallet } from "@/lib/useWallet";
+import { useAuth, useMyElections } from "@/lib/useAuth";
 
 const PAGE_SIZE = 24;
 
@@ -17,7 +17,7 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "open", label: "Open" },
   { id: "closed", label: "Closed" },
-  { id: "mine", label: "Created by me" },
+  { id: "mine", label: "My elections" },
 ];
 
 export default function ElectionsPage() {
@@ -29,7 +29,8 @@ export default function ElectionsPage() {
   const [shown, setShown] = useState(PAGE_SIZE);
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
-  const { account, connect } = useWallet();
+  const { user } = useAuth();
+  const myIds = useMyElections();
 
   const load = useCallback(async () => {
     if (!configured) return;
@@ -58,13 +59,12 @@ export default function ElectionsPage() {
       if (q && !e.title.toLowerCase().includes(q)) return false;
       if (filter === "open") return e.state === 1;
       if (filter === "closed") return e.state === 2;
-      if (filter === "mine") return Boolean(account) && e.creator.toLowerCase() === account!.toLowerCase();
+      if (filter === "mine") return Boolean(myIds) && myIds!.includes(e.id);
       return true;
     });
-  }, [items, filter, query, account]);
+  }, [items, filter, query, myIds]);
 
   function pick(next: Filter) {
-    if (next === "mine" && !account) connect();
     setFilter(next);
   }
 
@@ -106,8 +106,10 @@ export default function ElectionsPage() {
             </div>
           )}
 
-          {filter === "mine" && !account && (
-            <div className="status-banner">Connect your wallet to see the elections you created.</div>
+          {filter === "mine" && !user && (
+            <div className="status-banner">
+              <Link href="/login?next=/elections">Sign in</Link> to see the elections you run.
+            </div>
           )}
 
           {!error && !loading && total === 0 && (
@@ -117,7 +119,7 @@ export default function ElectionsPage() {
             </div>
           )}
 
-          {!error && !loading && total > 0 && visible.length === 0 && !(filter === "mine" && !account) && (
+          {!error && !loading && total > 0 && visible.length === 0 && !(filter === "mine" && !user) && (
             <div className="empty">
               <h3>Nothing matches</h3>
               <p>

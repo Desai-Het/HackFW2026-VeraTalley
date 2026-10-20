@@ -9,7 +9,7 @@ retry.
 
 ---
 
-## Part A: What the developer must hand over first
+## Part A: What the developer (Sneh) must hand over first
 
 The NAS owner should not have to invent any of these. Before starting, you need:
 
@@ -238,7 +238,8 @@ the developer.
 | Site shows "Bad gateway" / error 502 or 1033 | The `tunnel` container is stopped, or the token is wrong; check its Log |
 | Site shows 502 but tunnel is running | In Cloudflare the tunnel's public hostname URL must be exactly `app:3000` with type HTTP |
 | Page loads, but `/api/relay` shows `"ok":false` | A wallet or provider address in `.env` is wrong; send the app Log to the developer |
-| Page loads, but registration or voting says the server has no organiser wallet | `NEXT_PUBLIC_ORGANISER_WALLETS` is missing in `.env`; fix it and Build again |
+| Page loads, but registration or voting says the server has no organiser wallet | `NEXT_PUBLIC_ORGANISER_WALLETS` is missing in `.env` (it must be the server wallet's public address); fix it and Build again |
+| Sign-in says the site is not set up | `OWNER_USERNAME` or `OWNER_PASSWORD` is missing in `.env` (password 12+ characters); fix it and restart |
 | Registrations disappear after a restart | `PUID`/`PGID` wrong or the `data` folder is missing; fix and Build again |
 | Domain does not open at all | Cloudflare does not yet show the domain as Active (Step 5.1), or the hostname was not saved (5.2.6) |
 

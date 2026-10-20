@@ -37,7 +37,7 @@ or SSH). Set at least:
 
 - `NEXT_PUBLIC_ELECTION_FACTORY_ADDRESS`, `NEXT_PUBLIC_CHAIN_ID`, `NEXT_PUBLIC_RPC_URL`,
   `NEXT_PUBLIC_ORGANISER_WALLETS`
-- `RELAYER_PRIVATE_KEY` (throwaway wallet, small balance) and a fresh `INVITE_SECRET`
+- `RELAYER_PRIVATE_KEY` (the server wallet: throwaway, small balance; `NEXT_PUBLIC_ORGANISER_WALLETS` is its public address), a fresh `INVITE_SECRET`, and `OWNER_USERNAME` / `OWNER_PASSWORD` (12+ characters) for signing in
 - `PUBLIC_BASE_URL=https://vote.example.com` and `TRUSTED_PROXY_HOPS=1`
 - `CLOUDFLARE_TUNNEL_TOKEN` from step 2
 - `PUID` / `PGID`: your NAS user's numbers. Over SSH run `id <your-username>`.
