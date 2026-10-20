@@ -87,11 +87,20 @@ function organiserList(): string[] {
  *  factory and then spend this server's gas money and send email from its address. */
 export function requireOrganiser(election: ResolvedElection): void {
   const list = organiserList();
-  if (list.length === 0) {
-    if (CHAIN_ID === 31337) return; // local test chain: no allowlist needed
-    throw new ApiError("This server has no organiser wallets set up (NEXT_PUBLIC_ORGANISER_WALLETS).", 503);
+  if (list.length === 0 && CHAIN_ID === 31337) return; // local test chain: no allowlist needed
+  // Elections made by this server's own wallet (the ones organisers create after signing in) are
+  // always served. The list adds wallets whose older elections should keep working too.
+  let own = "";
+  try {
+    own = relayerAddress().toLowerCase();
+  } catch {
+    // no server wallet configured
   }
-  if (!list.includes(election.creator.toLowerCase())) {
+  const allowed = own ? [...list, own] : list;
+  if (allowed.length === 0) {
+    throw new ApiError("This server has no organiser wallet set up (RELAYER_PRIVATE_KEY).", 503);
+  }
+  if (!allowed.includes(election.creator.toLowerCase())) {
     throw new ApiError("This website does not serve that election.", 403);
   }
 }
@@ -112,6 +121,10 @@ export function expectedSite(req: Request): string {
   return (fwd ? fwd.split(",")[0].trim() : req.headers.get("host") || new URL(req.url).host).toLowerCase();
 }
 
+export function factoryAt(runner: NonceManager | JsonRpcProvider = serverProvider()): Contract {
+  if (!isAddress(FACTORY_ADDRESS)) throw new ApiError("This server is not connected to a factory.", 503);
+  return new Contract(FACTORY_ADDRESS, factoryAbi, runner);
+}
 export function registryAt(address: string, runner: NonceManager | JsonRpcProvider = serverProvider()): Contract {
   return new Contract(address, registryAbi, runner);
 }

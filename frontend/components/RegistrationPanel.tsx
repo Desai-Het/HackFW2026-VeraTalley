@@ -2,17 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ShareQrCode from "@/components/ShareQrCode";
-import { describeError } from "@/lib/contracts";
+import { api } from "@/lib/api";
 import {
   DEFAULT_CONFIG,
   FLAG_TEXT,
   MAX_FIELDS,
-  loginMessage,
   registrationPath,
   type RegConfig,
   type RegRecord,
 } from "@/lib/registration";
-import { getWalletSigner } from "@/lib/useWallet";
 
 type Props = {
   electionId: number;
@@ -23,7 +21,6 @@ type Props = {
 };
 
 type Status = { kind: "error" | "success" | "info"; text: string } | null;
-type Session = { token: string; expiresAt: number };
 
 const STATUS_RANK: Record<string, number> = { pending: 0, approved: 1, rejected: 2 };
 
@@ -36,7 +33,8 @@ function csvCell(v: string): string {
  *  Registrations are kept on the server, so the organiser signs in once (a free signature, no gas)
  *  to see them. */
 export default function RegistrationPanel({ electionId, state, onLoadApproved }: Props) {
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<boolean>(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [config, setConfig] = useState<RegConfig>(DEFAULT_CONFIG);
   const [domainsText, setDomainsText] = useState("");
   const [records, setRecords] = useState<RegRecord[]>([]);
@@ -66,21 +64,32 @@ export default function RegistrationPanel({ electionId, state, onLoadApproved }:
   }, []);
 
   const call = useCallback(
-    async (body: Record<string, unknown>, token = session?.token) => {
-      const res = await fetch("/api/registration/admin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ electionId, token, ...body }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!data?.ok) {
-        if (res.status === 401) setSession(null);
-        throw new Error(data?.error || "Something went wrong. Please try again.");
+    async (body: Record<string, unknown>) => {
+      try {
+        return await api<any>("/api/registration/admin", { electionId, ...body });
+      } catch (err: any) {
+        if (err?.status === 401) setSession(false);
+        throw err;
       }
-      return data;
     },
-    [electionId, session?.token]
+    [electionId]
   );
+
+  // Load the registrations as soon as the panel appears (the organiser is already signed in).
+  useEffect(() => {
+    let cancelled = false;
+    call({ action: "list" }).then(
+      (d) => {
+        if (cancelled) return;
+        apply(d);
+        setSession(true);
+      },
+      (err) => !cancelled && setLoadError(err?.message || "Could not load registrations.")
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [call, apply]);
 
   // While signed in, keep the list fresh as people register (every 8 seconds, only if the tab is visible).
   useEffect(() => {
@@ -93,31 +102,6 @@ export default function RegistrationPanel({ electionId, state, onLoadApproved }:
     }, 8000);
     return () => clearInterval(t);
   }, [session, busy, call, apply]);
-
-  async function signIn() {
-    setBusy(true);
-    setStatus(null);
-    try {
-      const signer = await getWalletSigner();
-      const issuedAt = Date.now();
-      setStatus({ kind: "info", text: "Approve the sign-in request in your wallet. It is free and sends nothing." });
-      const signature = await signer.signMessage(loginMessage(electionId, issuedAt, window.location.host.toLowerCase()));
-      const res = await fetch("/api/registration/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ electionId, issuedAt, signature }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!data?.ok) throw new Error(data?.error || "Could not sign in.");
-      setSession({ token: data.token, expiresAt: data.expiresAt });
-      apply(await call({ action: "list" }, data.token));
-      setStatus(null);
-    } catch (err: any) {
-      setStatus({ kind: "error", text: err?.message && !/ethers|execution reverted/i.test(err.message) ? err.message : describeError(err) });
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function run(body: Record<string, unknown>, okText?: string) {
     setBusy(true);
@@ -212,15 +196,13 @@ export default function RegistrationPanel({ electionId, state, onLoadApproved }:
           Let people sign up themselves: you get a QR code that opens a short form (name, email and any questions you add). Their details
           are collected here for you to check, and the good ones go into your voter list in one click.
         </p>
-        {status && (
-          <div className={`status-banner ${status.kind === "error" ? "error" : status.kind === "success" ? "success" : ""}`} role="status">
-            {status.text}
+        {loadError ? (
+          <div className="status-banner error" role="status">
+            {loadError} <a href="/login">Sign in again</a>
           </div>
+        ) : (
+          <p className="hint">Loading...</p>
         )}
-        <button onClick={signIn} disabled={busy}>
-          {busy ? "Working..." : "Sign in to manage registrations"}
-        </button>
-        <p className="hint">One free signature from your admin wallet. It lasts 30 minutes.</p>
       </div>
     );
   }

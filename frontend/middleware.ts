@@ -7,18 +7,30 @@ import { NextResponse, type NextRequest } from "next/server";
  *   - a browser on ANOTHER website cannot call the API (cross-site requests are refused), so a
  *     look-alike page cannot make a visitor's browser act on this server,
  *   - answers are never cached or sniffed.
- *  The API routes themselves still check who is asking (organiser signature, QR key, rate
+ *  The API routes themselves still check who is asking (signed-in account, QR key, rate
  *  limits). This layer only removes the easy abuse before it gets that far. */
 
 const MAX_BODY_BYTES = 20_000;
 
 const API_PATHS = new Set([
+  // voting
   "/api/relay",
-  "/api/invites/prepare",
-  "/api/invites/send",
+  // sign in and accounts
+  "/api/auth/login",
+  "/api/auth/logout",
+  "/api/auth/me",
+  "/api/auth/password",
+  "/api/accounts",
+  // organiser actions (all require a signed-in account)
+  "/api/org/create",
+  "/api/org/mine",
+  "/api/org/state",
+  "/api/org/voters",
+  "/api/org/invite",
+  "/api/org/wallet",
+  // registration: the first two are public (QR link), the last needs a signed-in account
   "/api/registration/info",
   "/api/registration/submit",
-  "/api/registration/session",
   "/api/registration/admin",
 ]);
 

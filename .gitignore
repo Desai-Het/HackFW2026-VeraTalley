@@ -29,6 +29,7 @@ frontend/.next/
 frontend/out/
 frontend/build/
 *.tsbuildinfo
+next16
 
 # Local app data (voter registrations are personal data - never commit)
 .data/

@@ -10,6 +10,7 @@ import { describeError, getElectionBallotAt, getReadProvider, getVoterRegistryAt
 import { shortAddress } from "@/lib/elections";
 import { getTargetChainId } from "@/lib/network";
 import { getWalletSigner, useWallet } from "@/lib/useWallet";
+import { useMyElections } from "@/lib/useAuth";
 import { leaders } from "@/lib/verify";
 
 const POLL_INTERVAL_MS = 5000;
@@ -24,6 +25,7 @@ type Props = { registryAddress: string; ballotAddress: string; electionId?: stri
  *  additionally gets the manage panel. Technical details sit in a collapsed section. */
 export default function ElectionView({ registryAddress, ballotAddress, electionId }: Props) {
   const { account, hasWallet, connect, error: walletError } = useWallet();
+  const myElections = useMyElections();
 
   const [title, setTitle] = useState("");
   const [candidates, setCandidates] = useState<string[]>([]);
@@ -129,7 +131,7 @@ export default function ElectionView({ registryAddress, ballotAddress, electionI
     if (account) await refreshAccountData(account);
   }, [account, refreshAccountData, refreshPublicData]);
 
-  const isAdmin = Boolean(account && admin && account.toLowerCase() === admin.toLowerCase());
+  const isAdmin = Boolean(electionId && myElections && myElections.includes(Number(electionId)));
   const canVote = ballotState === 1 && Boolean(account) && isEligible === true && hasVoted === false;
   // Someone choosing a candidate needs the selectable list; everyone else gets the 3D results (the
   // list stays in the page, hidden, for screen readers) so the same numbers are not shown twice.

@@ -3,9 +3,8 @@
 import { useMemo, useState } from "react";
 import InvitePanel from "@/components/InvitePanel";
 import RegistrationPanel from "@/components/RegistrationPanel";
-import { describeError, getElectionBallotAt, getVoterRegistryAt } from "@/lib/contracts";
+import { api } from "@/lib/api";
 import { MAX_VOTERS_PER_TRANSACTION, parseAddressList } from "@/lib/elections";
-import { getWalletSigner } from "@/lib/useWallet";
 
 type Props = {
   registryAddress: string;
@@ -54,20 +53,10 @@ export default function AdminPanel({
     setBusy(true);
     setStatus(null);
     try {
-      const signer = await getWalletSigner();
-      const registry = getVoterRegistryAt(registryAddress, signer);
-      const tx = await registry.registerVoters(parsed.valid);
-      setStatus({ kind: "info", text: "Submitted. Waiting for confirmation..." });
-      const receipt = await tx.wait();
-      let added = 0;
-      for (const log of receipt.logs) {
-        try {
-          if (registry.interface.parseLog({ topics: [...log.topics], data: log.data })?.name === "VoterRegistered") added += 1;
-        } catch {
-          // not a registry event
-        }
-      }
-      const already = parsed.valid.length - added;
+      const { added, already } = await api<{ added: number; already: number }>("/api/org/voters", {
+        electionId: Number(electionId),
+        addresses: parsed.valid,
+      });
       setStatus({
         kind: "success",
         text:
@@ -77,7 +66,7 @@ export default function AdminPanel({
       setRaw("");
       await onChanged();
     } catch (err) {
-      setStatus({ kind: "error", text: describeError(err) });
+      setStatus({ kind: "error", text: (err as Error)?.message || "Something went wrong." });
     } finally {
       setBusy(false);
     }
@@ -88,15 +77,12 @@ export default function AdminPanel({
     setStatus(null);
     setConfirming(null);
     try {
-      const signer = await getWalletSigner();
-      const ballot = getElectionBallotAt(ballotAddress, signer);
-      const tx = action === "open" ? await ballot.openVoting() : await ballot.closeVoting();
-      setStatus({ kind: "info", text: "Submitted. Waiting for confirmation..." });
-      await tx.wait();
+      setStatus({ kind: "info", text: "Submitting. This can take a few seconds..." });
+      await api("/api/org/state", { electionId: Number(electionId), action });
       setStatus({ kind: "success", text: action === "open" ? "Voting is now open." : "Voting is closed. The result is final." });
       await onChanged();
     } catch (err) {
-      setStatus({ kind: "error", text: describeError(err) });
+      setStatus({ kind: "error", text: (err as Error)?.message || "Something went wrong." });
     } finally {
       setBusy(false);
     }
@@ -110,7 +96,7 @@ export default function AdminPanel({
   return (
     <section className="panel" aria-label="Election admin controls">
       <h2>Manage this election</h2>
-      <p className="hint">Only you, as the organizer, can see and use these.</p>
+      <p className="hint">Only you, as the organizer, can see and use these. The site pays the blockchain fees.</p>
 
       {status && (
         <div className={`status-banner ${status.kind === "error" ? "error" : status.kind === "success" ? "success" : ""}`} role="status">

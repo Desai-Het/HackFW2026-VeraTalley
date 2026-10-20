@@ -29,5 +29,18 @@ export async function sendInviteEmail(to: string, rawTitle: string, link: string
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({ from, to: [to], subject: `Your voting link: ${electionTitle}`, text, html }),
   });
-  if (!res.ok) throw new ApiError("The email service refused this message.", 502);
+  if (!res.ok) {
+  const errorBody = await res.text();
+
+  console.error("RESEND ERROR:", {
+    status: res.status,
+    statusText: res.statusText,
+    body: errorBody,
+  });
+
+  throw new ApiError(
+    `Resend error ${res.status}: ${errorBody}`,
+    502
+  );
+}
 }

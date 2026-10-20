@@ -13,8 +13,9 @@ observers should not have to trust an organiser's database. VeraTalley runs the 
 one vote per eligible voter, enforced by code, so anyone can recount the result with no account and
 no special access.
 
-Voters need no crypto wallet and no coins. The organiser adds voters by email or by sharing a
-registration QR code, each person gets a personal voting link, and a small server pays the network
+Voters need no crypto wallet and no coins, and neither do organisers. Organisers sign in with a
+username and password, create an election, and either email voters a personal link or share a
+registration QR code that anyone can scan with no login. A small server wallet pays the network
 fee. The server can refuse a vote but cannot change or forge one, because the contract checks every
 signature itself.
 
@@ -41,6 +42,9 @@ signature itself.
   contest, one vote each), `ElectionFactory` (anyone can create an election and becomes its sole
   admin) and `SignatureLib` (EIP-712 typed-data signatures). Contracts are immutable: no proxy, no
   upgrade path, no pause switch.
+- **Organiser sign-in, no wallet needed.** The site owner creates a username and password for each
+  organiser. Organisers create and run elections from the browser; the server wallet signs and
+  pays. There is no public sign-up.
 - **Voting by email link, no wallet needed.** The voter's browser creates its own key, signs the
   vote, and a relayer submits it and pays the fee.
 - **Self-registration by QR code.** The organiser shows a QR code; people scan it and register with
@@ -50,7 +54,7 @@ signature itself.
 - **The voter list locks when voting opens**, enforced by the contract.
 - **Public verification:** anyone can recount an election from on-chain events and compare it with
   the contract's own tally. The page also shows invitations issued, used and voted.
-- **Hardened server:** organiser allow-list, signed and site-bound admin requests, rate limiting,
+- **Hardened server:** password sign-in with lockout, per-organiser ownership of elections, rate limiting,
   request filtering, security headers. See [Security](#security-and-trust-model).
 - **Tests:** 116 Hardhat tests (100% statement, line and function coverage), Slither static
   analysis with nothing high or medium, and a browser end-to-end run of the whole flow.
@@ -61,14 +65,14 @@ signature itself.
  Voter's browser                 Next.js server routes              Blockchain
 ┌──────────────────┐ signed msg ┌─────────────────────┐    tx     ┌────────────────────┐
 │ /elections/N/vote │ ─────────> │ /api/relay           │ ───────> │ ElectionFactory     │
-│ makes a key,      │            │ /api/invites/*       │          │ ElectionBallot      │
+│ makes a key,      │            │ /api/org/*  (login)  │          │ ElectionBallot      │
 │ signs the vote    │            │ /api/registration/*  │          │ VoterRegistry       │
 └──────────────────┘            └─────────────────────┘          └────────────────────┘
-Organiser's browser (MetaMask) ── signs and sends its own transactions ──────^
+Organiser's browser (signed in) ── /api/org/* ── server wallet signs and sends ──^
 ```
 
-1. The organiser connects MetaMask, creates an election and adds voters (invite by email, or open a
-   registration QR and approve sign-ups).
+1. The organiser signs in, creates an election and adds voters (invite by email, or open a
+   registration QR and approve sign-ups). The server wallet sends the transactions.
 2. Each voter gets a link like `/elections/3/vote#K7QM2-9XWPA-4HT8R-D3VNC`. The code after `#` is
    never sent to any server, so it stays out of logs.
 3. The voter opens the link. Their browser creates a private key that only they hold, uses the
@@ -82,7 +86,7 @@ Organiser's browser (MetaMask) ── signs and sends its own transactions ─�
 Everything runs on your computer with a local test chain. No accounts, coins or API keys.
 
 **Requirements:** Node.js 20.9 or newer and npm, a desktop browser with the
-[MetaMask](https://metamask.io/) extension (organisers only; voters need nothing), and Git.
+[MetaMask](https://metamask.io/) extension (only to fund or inspect wallets; nobody needs it to use the site), and Git.
 
 ### 1. Install and test
 
@@ -125,10 +129,12 @@ NEXT_PUBLIC_CHAIN_ID=31337
 NEXT_PUBLIC_RPC_URL=http://127.0.0.1:8545
 RELAYER_PRIVATE_KEY=<private key of "Account #1" from terminal 1>
 INVITE_SECRET=<run: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))">
+OWNER_USERNAME=owner
+OWNER_PASSWORD=<12+ characters you choose>
 INVITE_DELIVERY=links
 ```
 
-`INVITE_DELIVERY=links` skips email; the organiser gets copyable links instead.
+The owner sign-in is what unlocks everything else. `INVITE_DELIVERY=links` skips email; the organiser gets copyable links instead.
 
 ### 5. Run the app
 
@@ -140,9 +146,9 @@ Open <http://localhost:3000>. Check <http://localhost:3000/api/relay>: it should
 
 ### 6. Try it
 
-- **Organiser:** add a network to MetaMask (RPC `http://127.0.0.1:8545`, chain ID `31337`, symbol
-  `ETH`) and import "Account #0" from terminal 1. Create an election, add two or three emails, send
-  the invitations, then open voting.
+- **Organiser:** open `/login` and sign in as the owner, then go to **Accounts** and create a login
+  for yourself (or just use the owner login). Create an election, add two or three emails, send the
+  invitations, then open voting. No MetaMask needed.
 - **Voter:** open one of the links in a private window with no wallet, pick a candidate and vote.
   Reload to see the recorded vote, then open the Verify page and run the recount.
 - **Registration QR:** in the organiser panel, open registration, scan or open the QR link in
@@ -158,9 +164,8 @@ nothing: Amoy uses free test coins.
 | Item | Why | Where |
 | --- | --- | --- |
 | Deployer wallet | Deploys the factory. Throwaway, test coins only. | New MetaMask account |
-| Relayer wallet | Pays fees for voters. Throwaway, different from the others. | New MetaMask account |
-| Organiser wallet | Creates and runs elections. Can be the deployer. | MetaMask |
-| Test POL | Fees. About 0.3 POL for the deployer and 0.1-0.5 for the relayer is plenty to start. | An Amoy faucet |
+| Server wallet | The same wallet as the relayer: pays fees and creates every election. | New MetaMask account |
+| Test POL | Fees. About 0.3 POL for the deployer and 0.1-0.5 for the server wallet is plenty to start. | An Amoy faucet |
 | Amoy RPC URL | Reads and writes the chain. | Alchemy, QuickNode or dRPC (free tier). Must contain `polygon-amoy`. |
 | A host | Runs the app. See step 4. | Render, Railway, Fly.io or a VPS |
 | Email (optional) | Sends invitations. | [Resend](https://resend.com) with a verified domain |
@@ -189,14 +194,17 @@ cp frontend/.env.local.example frontend/.env.local
 NEXT_PUBLIC_ELECTION_FACTORY_ADDRESS=<address from step 1>
 NEXT_PUBLIC_CHAIN_ID=80002
 NEXT_PUBLIC_RPC_URL=<your Amoy RPC URL>
-NEXT_PUBLIC_ORGANISER_WALLETS=<public address(es) of your organiser wallet>
-RELAYER_PRIVATE_KEY=<relayer wallet key>
+NEXT_PUBLIC_ORGANISER_WALLETS=<public address of the server wallet>
+RELAYER_PRIVATE_KEY=<server wallet key>
+OWNER_USERNAME=<your owner username>
+OWNER_PASSWORD=<12+ characters>
 INVITE_SECRET=<32+ random characters>
 INVITE_DELIVERY=links
 ```
 
-`NEXT_PUBLIC_ORGANISER_WALLETS` is required on a public chain. Without it the relayer, invitations
-and registrations refuse to run, which protects you from strangers using your relayer.
+`NEXT_PUBLIC_ORGANISER_WALLETS` is required on a public chain and must be the public address of
+the server wallet (the one behind `RELAYER_PRIVATE_KEY`; the owner's **Accounts** page also shows
+it). Without it the relayer and the public election list refuse to run.
 
 ### 3. Try it on your machine first
 
@@ -204,7 +212,7 @@ and registrations refuse to run, which protects you from strangers using your re
 npm run frontend:dev
 ```
 
-Switch MetaMask to Polygon Amoy, create an election, invite yourself and vote. Check
+Sign in, create an election, invite yourself and vote. Check
 <http://localhost:3000/api/relay> shows `"ok":true` and that `low` is `false`.
 
 ### 4. Host it
@@ -233,10 +241,13 @@ On Render, Railway or Fly.io (or a VPS):
    automatically).
 7. In your RPC provider's dashboard, restrict the API key to your domain.
 
-Running it on a Synology NAS instead? Follow [docs/deploy-synology.md](docs/deploy-synology.md); the
+Running it on a Synology NAS instead? Follow [docs/synology-step-by-step.md](docs/synology-step-by-step.md)
+(plain-language steps for the NAS owner) or the shorter [docs/deploy-synology.md](docs/deploy-synology.md); the
 repository includes a `Dockerfile` and `deploy/synology/docker-compose.yml` for it.
 
 ### 5. Email invitations (optional)
+
+Full walkthrough: [docs/organisers-and-email.md](docs/organisers-and-email.md).
 
 Create a Resend account, verify a sending domain, then set `RESEND_API_KEY`, `EMAIL_FROM` and
 `INVITE_DELIVERY=email`. Until then `INVITE_DELIVERY=links` lets the organiser hand out links.
@@ -244,8 +255,9 @@ Create a Resend account, verify a sending domain, then set `RESEND_API_KEY`, `EM
 ### 6. Go-live checklist
 
 - [ ] Factory deployed and `NEXT_PUBLIC_ELECTION_FACTORY_ADDRESS` set
-- [ ] `NEXT_PUBLIC_ORGANISER_WALLETS` set to your wallet(s)
-- [ ] Relayer wallet funded; `/api/relay` reports `ok` and `low: false`
+- [ ] `NEXT_PUBLIC_ORGANISER_WALLETS` set to the server wallet's public address
+- [ ] `OWNER_USERNAME` and a strong `OWNER_PASSWORD` set; organiser logins created on the Accounts page
+- [ ] Server wallet funded; `/api/relay` reports `ok` and `low: false`
 - [ ] `INVITE_SECRET` is a fresh random value used nowhere else
 - [ ] `PUBLIC_BASE_URL` matches the real address; HTTPS works
 - [ ] `TRUSTED_PROXY_HOPS` matches the host; only one instance is running
@@ -273,8 +285,9 @@ To run on a different EVM network, set `NEXT_PUBLIC_CHAIN_ID` and the RPC, add t
 | --- | --- | --- |
 | `NEXT_PUBLIC_ELECTION_FACTORY_ADDRESS` | Yes | The factory every page reads elections from |
 | `NEXT_PUBLIC_CHAIN_ID`, `NEXT_PUBLIC_RPC_URL` | Yes | Which chain, and how to read it |
-| `NEXT_PUBLIC_ORGANISER_WALLETS` | Yes on public chains | Wallets allowed to run elections (public addresses) |
-| `RELAYER_PRIVATE_KEY` | Yes | Throwaway wallet that pays fees for voters |
+| `NEXT_PUBLIC_ORGANISER_WALLETS` | Yes on public chains | Public address of the server wallet (the creator of every election on this site) |
+| `RELAYER_PRIVATE_KEY` | Yes | The server wallet: pays fees and creates every election. Throwaway. |
+| `OWNER_USERNAME`, `OWNER_PASSWORD` | Yes | The site owner's sign-in (password 12+ characters). The owner creates organiser logins. |
 | `INVITE_SECRET` | Yes | Derives invite codes. Treat like a password. |
 | `INVITE_DELIVERY` | Yes | `links` or `email` |
 | `RESEND_API_KEY`, `EMAIL_FROM` | If `email` | Sending invitations |
@@ -294,7 +307,9 @@ lets anyone recount. This is not a secret ballot.
 | --- | --- | --- |
 | The relayer server | Refuse or delay votes | Change a vote or vote for someone (signatures are checked on-chain) |
 | Whoever holds `INVITE_SECRET` | Recompute invite codes; claim an **unused** invite; link an email to its anonymous voter ID | Vote as someone who already claimed their invite |
-| The organiser | Choose who is invited; open and close voting | Add voters after voting opens, or change candidates |
+| An organiser account | Run only the elections it created: choose who is invited; open and close voting | Touch another organiser's election, add voters after voting opens, or change candidates |
+| The site owner | Create, switch off and reset organiser accounts; manage every election | Change or forge a vote |
+| Whoever controls the server wallet key | Create elections, refuse votes | Change a recorded vote |
 | Anyone | Recount from chain events | - |
 
 Known limits:
@@ -304,10 +319,14 @@ Known limits:
 - A voter who clears browser data after claiming but before voting cannot use that invite.
 - Anyone with access to a voter's inbox can vote as them.
 - The relayer queue and rate limits are in memory, so run one instance.
+- Elections made before sign-in existed (created from MetaMask) stay public and verifiable, but cannot be managed from the site.
+- Account data lives in `DATA_DIR/accounts.json`. Back that folder up.
 - The registration file is not encrypted. Keep the disk private and purge it after the event.
 
-Built-in protections: only organiser wallets can use the relayer, invitations and registrations;
-organiser requests are signed by the wallet, expire quickly and are bound to this site; registration
+Built-in protections: only signed-in organisers can create elections, invite or manage
+registrations, and only for elections they own; passwords are stored as salted scrypt hashes, sign-in
+is rate limited and locks after repeated failures, and the session cookie is HttpOnly, SameSite and
+Secure on HTTPS; the relayer only serves elections created by the server wallet; registration
 links carry a secret that can be replaced; rate limits apply per visitor and overall; a request
 filter accepts only the app's own API calls; and security headers (CSP, framing, HSTS) are set.
 
@@ -349,8 +368,11 @@ recompile and a new factory deployment.
 | --- | --- |
 | MetaMask shows nonce errors after restarting the local node | Settings -> Advanced -> Clear activity tab data |
 | `/api/relay` says not configured or `low: true` | Check `RELAYER_PRIVATE_KEY`, and fund that wallet with test POL |
-| "This server has no organiser wallets set up" (503) | Set `NEXT_PUBLIC_ORGANISER_WALLETS`, then restart |
-| "This website does not serve that election" (403) | The election was created by a wallet not in `NEXT_PUBLIC_ORGANISER_WALLETS` |
+| "This server has no organiser wallets set up" (503) | Set `NEXT_PUBLIC_ORGANISER_WALLETS` to the server wallet's public address, then restart/rebuild |
+| Sign-in says the site is not set up | `OWNER_USERNAME` / `OWNER_PASSWORD` missing (password must be 12+ characters) |
+| "Too many failed attempts" | Wait 15 minutes, or restart the server |
+| "The server wallet is out of funds" | Send test POL to the address on the owner's Accounts page |
+| "This website does not serve that election" (403) | The election was not created by the server wallet in `NEXT_PUBLIC_ORGANISER_WALLETS` |
 | MetaMask "Interaction failed" on Amoy | The fee was too low and the transaction never mined; update to the latest code (fee floor) and retry |
 | Deploy fails with an RPC error | `AMOY_RPC_URL` must be a provider URL containing `polygon-amoy` |
 | Registration link says "link is incomplete" | The part after `#` was cut off; copy the full link or use "New QR code" |
@@ -360,6 +382,7 @@ recompile and a new factory deployment.
 ## Documentation, contributing, license
 
 - [docs/architecture.md](docs/architecture.md): design, contracts, server routes, hosting.
+- [docs/organisers-and-email.md](docs/organisers-and-email.md): sign-in, organiser accounts, QR sign-up, email setup.
 - `docs/decision-log.md`: architectural decisions. `docs/sprints/`: per-sprint requirements.
 - This project follows the requirement-ID and sprint conventions of the HackFW-2026 requirements
   doc (FR/CR/NFR/SR/OOS IDs, Must/Should/Could priority).
