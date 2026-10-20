@@ -4,6 +4,8 @@ node_modules/
 .pnp.js
 
 # Env files - NEVER commit these (NFR-03). Only the *.example files are tracked.
+env
+**/env
 .env
 .env.*
 **/.env
