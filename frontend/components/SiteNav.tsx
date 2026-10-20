@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import ThemeToggle from "@/components/ThemeToggle";
 
 /** Site header. Each destination is linked once: the landing page already carries the two main
  *  actions in its hero, so there the header shows only the brand; on every other page it offers
@@ -11,6 +12,7 @@ export default function SiteNav() {
   const onHome = pathname === "/";
   const onCreate = pathname === "/elections/create";
   const onList = pathname === "/elections";
+  const onVote = /^\/elections\/[^/]+\/vote(\/|$)/.test(pathname);
 
   return (
     <header className="site-header">
@@ -29,13 +31,14 @@ export default function SiteNav() {
             <Link href="/check" className="site-nav-link">
               Check a vote
             </Link>
-            {!onCreate && (
+            {!onCreate && !onVote && (
               <Link href="/elections/create" className="btn primary btn-sm">
                 Create election
               </Link>
             )}
           </>
         )}
+        <ThemeToggle />
       </nav>
     </header>
   );

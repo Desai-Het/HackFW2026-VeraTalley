@@ -1,6 +1,31 @@
 /* VeraTally - calm, paper-like interface. One accent colour for actions and vote shares. */
 
+/* Dark is the product's default (ThemeToggle.tsx + the inline script in app/layout.tsx set
+ * data-theme on <html> before paint) - it is not tied to the OS theme. Same two palettes as
+ * before, just reorganized: these were previously the prefers-color-scheme: dark values. */
 :root {
+  --bg: #121311;
+  --surface: #1a1b19;
+  --text: #ecece7;
+  --muted: #9a9c94;
+  --line: #2b2c29;
+  --line-strong: #42433e;
+  --accent: #5fbba8;
+  --accent-hover: #7accba;
+  --accent-soft: #1c2e2a;
+  --accent-contrast: #0d1412;
+  --success-bg: #1c2e2a;
+  --success-text: #9fdccd;
+  --error-bg: #34201e;
+  --error-text: #f0a69f;
+  --note-bg: #20211f;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+}
+
+/* The light theme, opted into via the toggle - previously the unguarded :root default. */
+:root[data-theme="light"] {
   --bg: #fafaf8;
   --surface: #ffffff;
   --text: #191a18;
@@ -16,30 +41,7 @@
   --error-bg: #fbeae8;
   --error-text: #8f2a21;
   --note-bg: #f1f1ed;
-  --radius: 12px;
-  --radius-sm: 8px;
   --shadow: 0 1px 2px rgba(20, 22, 20, 0.04), 0 8px 24px -12px rgba(20, 22, 20, 0.12);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #121311;
-    --surface: #1a1b19;
-    --text: #ecece7;
-    --muted: #9a9c94;
-    --line: #2b2c29;
-    --line-strong: #42433e;
-    --accent: #5fbba8;
-    --accent-hover: #7accba;
-    --accent-soft: #1c2e2a;
-    --accent-contrast: #0d1412;
-    --success-bg: #1c2e2a;
-    --success-text: #9fdccd;
-    --error-bg: #34201e;
-    --error-text: #f0a69f;
-    --note-bg: #20211f;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
-  }
 }
 
 * {
@@ -264,6 +266,122 @@ summary:focus-visible {
   border-top: 1px solid var(--line);
   color: var(--muted);
   font-size: 0.85rem;
+}
+
+/* ---- Theme toggle ---- */
+/* A block in a chain: the hexagon flips like a coin between a moon and a sun face, and the two
+ * small nodes beside it pulse gently, as if still linked to the rest of the chain. */
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: none;
+  background: none;
+  padding: 4px;
+  margin-left: 4px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.theme-toggle-placeholder {
+  display: inline-block;
+  width: 60px;
+  height: 26px;
+}
+
+.theme-toggle-node {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: theme-toggle-node-pulse 2.6s ease-in-out infinite;
+}
+
+.theme-toggle-node-right {
+  animation-delay: 1.3s;
+}
+
+.theme-toggle-block {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  perspective: 160px;
+}
+
+.theme-toggle-hex,
+.theme-toggle-icon {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.theme-toggle-hex {
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.theme-toggle[data-mode="light"] .theme-toggle-hex {
+  transform: rotateY(180deg);
+}
+
+.theme-toggle-hex-shape {
+  fill: var(--surface);
+  stroke: var(--line-strong);
+  stroke-width: 1.4;
+  transition: stroke 0.2s ease;
+}
+
+.theme-toggle:hover .theme-toggle-hex-shape {
+  stroke: var(--accent);
+}
+
+.theme-toggle-icon {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.theme-toggle-icon-moon {
+  fill: var(--accent);
+  stroke: none;
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+
+.theme-toggle-icon-sun {
+  opacity: 0;
+  transform: scale(0.5) rotate(-45deg);
+}
+
+.theme-toggle[data-mode="light"] .theme-toggle-icon-moon {
+  opacity: 0;
+  transform: scale(0.5) rotate(45deg);
+}
+
+.theme-toggle[data-mode="light"] .theme-toggle-icon-sun {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+
+.theme-toggle-rays line {
+  stroke: var(--accent);
+}
+
+@keyframes theme-toggle-node-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.6);
+    opacity: 1;
+  }
 }
 
 .site-footer-inner {
