@@ -9,8 +9,11 @@ export const ELECTION_BALLOT_ADDRESS = process.env.NEXT_PUBLIC_ELECTION_BALLOT_A
 // election's registry and ballot addresses from it, so this is the only address they need.
 export const ELECTION_FACTORY_ADDRESS = process.env.NEXT_PUBLIC_ELECTION_FACTORY_ADDRESS || "";
 
-const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://rpc-amoy.polygon.technology/";
 const READ_CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID || 80002);
+// Polygon's free public Amoy endpoint has been shut down, so there is no safe default for Amoy:
+// set NEXT_PUBLIC_RPC_URL to a provider URL (Alchemy, QuickNode...). A local node needs none.
+const RPC_URL =
+  process.env.NEXT_PUBLIC_RPC_URL || (READ_CHAIN_ID === 31337 ? "http://127.0.0.1:8545" : "");
 
 export const BALLOT_STATE_LABELS = ["Draft", "Open", "Closed"] as const;
 
@@ -26,6 +29,7 @@ let readProvider: JsonRpcProvider | null = null;
  *  call just fails and the next poll tries again. */
 export function getReadProvider(): Provider {
   if (!readProvider) {
+    if (!RPC_URL) throw new Error("NEXT_PUBLIC_RPC_URL is not set. Add your Polygon Amoy provider URL to the environment settings.");
     readProvider = new JsonRpcProvider(RPC_URL, Network.from(READ_CHAIN_ID), { staticNetwork: true });
   }
   return readProvider;

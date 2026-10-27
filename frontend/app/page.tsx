@@ -1,23 +1,24 @@
 "use client";
 
+import { APP_NAME } from "@/lib/brand";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import ConfigNotice from "@/components/ConfigNotice";
 import StateBadge from "@/components/StateBadge";
 import HeroLedger from "@/components/HeroLedgerLazy";
-import { factoryConfigured, getElectionFactory, getReadProvider } from "@/lib/contracts";
-import { fetchElectionSummary, shortAddress, type ElectionSummary } from "@/lib/elections";
+import { factoryConfigured } from "@/lib/contracts";
+import { fetchVisibleElections, shortAddress, type ElectionSummary } from "@/lib/elections";
 
 const LATEST_COUNT = 3;
 
 const STEPS = [
   {
     title: "Create",
-    text: "Name your election, list the candidates, and add the wallets that are allowed to vote.",
+    text: "Sign in, name your election and list the candidates. Add voters by email, or share a QR code so they can register themselves.",
   },
   {
     title: "Vote",
-    text: "Each registered voter picks a candidate once. The vote is recorded on the blockchain.",
+    text: "Each voter opens their personal link, picks a candidate once, and the vote is recorded on the blockchain. No wallet needed.",
   },
   {
     title: "Verify",
@@ -35,10 +36,7 @@ export default function Landing() {
     let cancelled = false;
     (async () => {
       try {
-        const count = Number(await getElectionFactory(getReadProvider()).electionCount());
-        const ids: number[] = [];
-        for (let i = count - 1; i >= Math.max(0, count - LATEST_COUNT); i--) ids.push(i);
-        const rows = await Promise.all(ids.map((id) => fetchElectionSummary(id)));
+        const { items: rows } = await fetchVisibleElections(LATEST_COUNT);
         if (!cancelled) setItems(rows);
       } catch (err) {
         console.error("Failed to load elections", err);
@@ -57,7 +55,7 @@ export default function Landing() {
         <div>
           <h1>Vote, then check the result yourself.</h1>
           <p className="lede">
-            VeraTally runs elections on a public blockchain. Every vote is recorded openly, nobody can change the count
+            {APP_NAME} runs elections on a public blockchain. Every vote is recorded openly, nobody can change the count
             afterwards, and anyone can recount it.
           </p>
           <div className="hero-actions">
@@ -152,7 +150,7 @@ export default function Landing() {
       <aside className="honest-note">
         <h3>Good to know</h3>
         <p>
-          Votes are public: anyone can see which wallet voted for whom. That makes VeraTally a good fit for open votes
+          Votes are public: anyone can see which wallet voted for whom. That makes {APP_NAME} a good fit for open votes
           among groups that want a result nobody can quietly change, and a poor fit for secret ballots.
         </p>
       </aside>

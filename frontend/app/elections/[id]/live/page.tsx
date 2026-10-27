@@ -22,7 +22,7 @@ type Loaded =
   | { kind: "ready"; ballot: string; registry: string };
 
 /** A public, read-only "second screen" for one election: no wallet needed, meant to be left open
- *  on a shared display at an event while the QR code next to it brings people onto the ballot. */
+ *  on a shared display at an event while sign-ups are open, with a QR code to register. */
 export default function LiveStatsPage() {
   const params = useParams<{ id: string }>();
   const id = typeof params?.id === "string" ? params.id : "";
@@ -35,6 +35,8 @@ export default function LiveStatsPage() {
   const [state, setState] = useState(0);
   const [pulsed, setPulsed] = useState<boolean[]>([]);
   const [registeredVoters, setRegisteredVoters] = useState<number | null>(null);
+  const [regOpen, setRegOpen] = useState(false);
+  const [regKey, setRegKey] = useState("");
   const prevTally = useRef<bigint[]>([]);
   const pulseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -109,6 +111,32 @@ export default function LiveStatsPage() {
     };
   }, []);
 
+  // The QR code only appears while sign-ups are open, and goes away when voting starts. It needs
+  // the secret from this page's own address (the organiser opens the big screen from the manage
+  // panel, which adds it), so the public live page never gives the registration link away.
+  useEffect(() => {
+    const read = () => setRegKey(decodeURIComponent(window.location.hash.replace(/^#/, "")).trim());
+    read();
+    window.addEventListener("hashchange", read);
+    return () => window.removeEventListener("hashchange", read);
+  }, []);
+
+  useEffect(() => {
+    if (loaded.kind !== "ready") return;
+    let cancelled = false;
+    const check = () =>
+      fetch(`/api/registration/info?e=${id}`)
+        .then((r) => r.json())
+        .then((d) => !cancelled && setRegOpen(Boolean(d?.ok && d.open)))
+        .catch(() => undefined);
+    check();
+    const t = setInterval(check, 10_000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [loaded.kind, id]);
+
   if (!configured) {
     return (
       <main className="live-page">
@@ -154,10 +182,12 @@ export default function LiveStatsPage() {
           pulsed={pulsed}
           registeredVoters={registeredVoters}
         />
-        <div className="live-qr">
-          <p className="live-qr-label">Scan to vote</p>
-          <ShareQrCode path={`/elections/${id}`} shareTitle={`Vote: ${title}`} size={240} />
-        </div>
+        {regOpen && regKey && (
+          <div className="live-qr">
+            <p className="live-qr-label">Scan to register</p>
+            <ShareQrCode path={`/register/${id}#${regKey}`} shareTitle={`Register: ${title}`} size={240} alt="QR code that opens the registration form" />
+          </div>
+        )}
       </div>
     </main>
   );

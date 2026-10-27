@@ -1,0 +1,37 @@
+# VeraTalley on a Synology NAS (Container Manager) behind a Cloudflare Tunnel.
+# The app is NOT published on any NAS port: only the tunnel container can reach it.
+# Copy .env.example to .env in this folder and fill it in before creating the project.
+name: veratalley
+
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_ELECTION_FACTORY_ADDRESS: ${NEXT_PUBLIC_ELECTION_FACTORY_ADDRESS}
+        NEXT_PUBLIC_CHAIN_ID: ${NEXT_PUBLIC_CHAIN_ID:-80002}
+        NEXT_PUBLIC_RPC_URL: ${NEXT_PUBLIC_RPC_URL}
+        NEXT_PUBLIC_EXPLORER_URL: ${NEXT_PUBLIC_EXPLORER_URL:-}
+        NEXT_PUBLIC_ORGANISER_WALLETS: ${NEXT_PUBLIC_ORGANISER_WALLETS}
+    image: veratalley:latest
+    restart: unless-stopped
+    # Run as your own NAS user so the data folder is writable (see PUID/PGID in .env).
+    user: "${PUID:-1000}:${PGID:-100}"
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+    volumes:
+      # NAS folder that keeps registrations across restarts, e.g. /volume1/docker/veratalley/data
+      - ${DATA_HOST_PATH:-./data}:/data
+    expose:
+      - "3000"
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - app

@@ -1,6 +1,11 @@
-// Increment B deploy script: no ElectionFactory yet (that's Increment C), so this deploys one
-// VoterRegistry and one ElectionBallot directly, registers a demo voter list, and opens voting -
-// enough for the thin golden-path demo (cast a vote end to end, second attempt refused).
+// Deploy script. Deploys the ElectionFactory - the only contract that has to exist up front,
+// since every election is created through it from the app.
+//
+// Locally (localhost / hardhat) it also creates and opens a small demo election, so
+// `npm run contracts:deploy:local` plus the frontend works with zero setup.
+// On a public network (Amoy) it deploys the factory ONLY, which keeps the gas bill small; create
+// real elections from the app. To also create a demo election there, set CREATE_DEMO_ELECTION=true
+// (and DEMO_VOTER_ADDRESSES) in contracts/.env. CREATE_DEMO_ELECTION=false skips it locally too.
 const hre = require("hardhat");
 const fs = require("fs");
 const path = require("path");
@@ -8,6 +13,7 @@ const path = require("path");
 // Comma-separated wallet addresses to register as eligible voters, e.g. for a real Amoy demo
 // with specific judge/presenter wallets. Falls back to a few of the local Hardhat signers so
 // `npm run contracts:deploy:local` works with zero configuration.
+const CREATE_DEMO_ELECTION_ENV = (process.env.CREATE_DEMO_ELECTION || "").trim().toLowerCase();
 const DEMO_VOTER_ADDRESSES = (process.env.DEMO_VOTER_ADDRESSES || "")
   .split(",")
   .map((a) => a.trim())
@@ -19,10 +25,17 @@ const CANDIDATES = ["Option A", "Option B"];
 async function main() {
   const { ethers, network } = hre;
   const isLocal = network.name === "localhost" || network.name === "hardhat";
+  const createDemo = CREATE_DEMO_ELECTION_ENV ? CREATE_DEMO_ELECTION_ENV === "true" : isLocal;
 
   // Check everything we can BEFORE spending gas, so a bad config never leaves half-deployed,
   // unusable contracts on Amoy.
-  if (!isLocal && DEMO_VOTER_ADDRESSES.length === 0) {
+  if (!isLocal && !process.env.AMOY_RPC_URL) {
+    throw new Error(
+      "AMOY_RPC_URL is not set in contracts/.env. Polygon's free public Amoy endpoint has been " +
+        "shut down - use a provider URL (Alchemy, QuickNode, dRPC...) that contains 'polygon-amoy'."
+    );
+  }
+  if (createDemo && !isLocal && DEMO_VOTER_ADDRESSES.length === 0) {
     throw new Error(
       "DEMO_VOTER_ADDRESSES is empty. On a public network, set it in contracts/.env to the " +
         "comma-separated wallet addresses that should be able to vote - otherwise the election " +
@@ -56,6 +69,29 @@ async function main() {
   await factory.waitForDeployment();
   const factoryAddress = await factory.getAddress();
   console.log("ElectionFactory deployed to:", factoryAddress);
+
+  const chainId = Number((await ethers.provider.getNetwork()).chainId);
+
+  if (!createDemo) {
+    const info = {
+      network: network.name,
+      chainId,
+      electionFactory: factoryAddress,
+      deployedAt: new Date().toISOString(),
+    };
+    const out = path.join(__dirname, "..", `deployed-addresses.${network.name}.json`);
+    fs.writeFileSync(out, JSON.stringify(info, null, 2) + "\n");
+    console.log("No demo election created. Wrote", out);
+    console.log("\nNext steps:");
+    console.log("  1. Put these in the frontend settings (frontend/.env.local, or your host's settings):");
+    console.log(`       NEXT_PUBLIC_ELECTION_FACTORY_ADDRESS=${factoryAddress}`);
+    console.log(`       NEXT_PUBLIC_CHAIN_ID=${chainId}`);
+    if (!isLocal) {
+      console.log("  2. Optional: verify the source on Polygonscan (ETHERSCAN_API_KEY set in contracts/.env):");
+      console.log(`       npx hardhat verify --network ${network.name} ${factoryAddress}`);
+    }
+    return;
+  }
 
   const createTx = await factory.createElection(ELECTION_TITLE, CANDIDATES);
   const createReceipt = await createTx.wait();

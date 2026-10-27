@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { describeError, getReadProvider, getVoterRegistryAt } from "@/lib/contracts";
-import { MAX_INVITES_PER_REQUEST, adminMessage, parseEmailList } from "@/lib/invite";
-import { getWalletSigner } from "@/lib/useWallet";
+import { getReadProvider, getVoterRegistryAt } from "@/lib/contracts";
+import { api } from "@/lib/api";
+import { MAX_INVITES_PER_REQUEST, parseEmailList } from "@/lib/invite";
 
 type Props = {
   registryAddress: string;
@@ -11,6 +11,8 @@ type Props = {
   /** 0 = Draft, 1 = Open, 2 = Closed */
   state: number;
   onChanged: () => Promise<void> | void;
+  /** Fills the email box (used by the registration list). `n` changes each time so the same text can be loaded again. */
+  prefill?: { text: string; n: number };
 };
 
 type Result = { email: string; status: "sent" | "already-claimed" | "not-registered" | "failed"; link?: string };
@@ -23,16 +25,18 @@ const LABELS: Record<Result["status"], string> = {
   failed: "Failed to send",
 };
 
-/** Invite voters by email. Each person gets a personal link; they need no wallet. The admin
- *  signs one short message (free) to prove who they are, puts the invites on-chain, and the
- *  server then emails the links. Safe to repeat: re-sending the same email re-sends the same
+/** Invite voters by email. Each person gets a personal link; they need no wallet. The site records the invites on the blockchain and emails the links. Safe to repeat: re-sending the same email re-sends the same
  *  link. */
-export default function InvitePanel({ registryAddress, electionId, state, onChanged }: Props) {
+export default function InvitePanel({ registryAddress, electionId, state, onChanged, prefill }: Props) {
   const [raw, setRaw] = useState("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<Status>(null);
   const [results, setResults] = useState<Result[] | null>(null);
   const [counts, setCounts] = useState<{ invited: number; claimed: number } | null>(null);
+
+  useEffect(() => {
+    if (prefill && prefill.n > 0) setRaw(prefill.text);
+  }, [prefill?.n]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const parsed = useMemo(() => parseEmailList(raw), [raw]);
   const tooMany = parsed.valid.length > MAX_INVITES_PER_REQUEST;
@@ -53,42 +57,14 @@ export default function InvitePanel({ registryAddress, electionId, state, onChan
     refreshCounts();
   }, [refreshCounts]);
 
-  async function post(path: string, body: unknown) {
-    const res = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    const data = await res.json().catch(() => null);
-    if (!data?.ok) throw new Error(data?.error || "Something went wrong. Please try again.");
-    return data;
-  }
-
   async function send() {
     setBusy(true);
     setStatus(null);
     setResults(null);
     try {
       const emails = parsed.valid;
-      const signer = await getWalletSigner();
-      const issuedAt = Date.now();
-      setStatus({ kind: "info", text: "Approve the sign-in request in your wallet. It is free and sends nothing." });
-      const signature = await signer.signMessage(adminMessage("invites", electionId, emails, issuedAt));
-      const auth = { electionId, emails, issuedAt, signature };
-
-      if (state === 0) {
-        setStatus({ kind: "info", text: "Preparing invitations..." });
-        const prepared = await post("/api/invites/prepare", auth);
-        const registry = getVoterRegistryAt(registryAddress, signer);
-        const fresh: string[] = [];
-        for (const inv of prepared.invites as { email: string; address: string }[]) {
-          if (Number(await registry.inviteStatus(inv.address)) === 0) fresh.push(inv.address);
-        }
-        if (fresh.length > 0) {
-          setStatus({ kind: "info", text: `Recording ${fresh.length} invitation${fresh.length === 1 ? "" : "s"} on the blockchain. Confirm in your wallet...` });
-          const tx = await registry.addInvites(fresh);
-          await tx.wait();
-        }
-      }
-
-      setStatus({ kind: "info", text: "Sending emails..." });
-      const sent = await post("/api/invites/send", auth);
+      setStatus({ kind: "info", text: state === 0 ? "Recording invitations and sending emails. This can take a minute..." : "Sending emails..." });
+      const sent = await api<{ delivery: string; results: Result[] }>("/api/org/invite", { electionId, emails });
       const list = sent.results as Result[];
       setResults(list);
       const ok = list.filter((r) => r.status === "sent").length;
@@ -103,7 +79,7 @@ export default function InvitePanel({ registryAddress, electionId, state, onChan
       await refreshCounts();
       await onChanged();
     } catch (err: any) {
-      setStatus({ kind: "error", text: err?.message && !/VeraTally|ethers|execution reverted/i.test(err.message) ? err.message : describeError(err) });
+      setStatus({ kind: "error", text: err?.message || "Could not send the invitations." });
     } finally {
       setBusy(false);
     }

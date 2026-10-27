@@ -1,13 +1,13 @@
 import { CHAIN_ID_PUBLIC } from "./network-public";
 
-export type RelayStatus = { ok: true; relayer: string; balance: string } | { ok: false; error: string };
+export type RelayStatus = { ok: true; low: boolean } | { ok: false; error: string };
 
 /** Whether the server can pay gas for voters right now. */
 export async function getRelayStatus(): Promise<RelayStatus> {
   try {
     const res = await fetch("/api/relay", { cache: "no-store" });
     const data = await res.json();
-    return data.ok ? { ok: true, relayer: data.relayer, balance: data.balance } : { ok: false, error: data.error };
+    return data.ok ? { ok: true, low: Boolean(data.low) } : { ok: false, error: data.error };
   } catch {
     return { ok: false, error: "Can't reach the voting server." };
   }

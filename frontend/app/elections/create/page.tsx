@@ -3,24 +3,30 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import ConfigNotice from "@/components/ConfigNotice";
-import { describeError, factoryConfigured, getElectionFactory } from "@/lib/contracts";
+import Link from "next/link";
+import { useEffect } from "react";
+import { api } from "@/lib/api";
+import { factoryConfigured } from "@/lib/contracts";
+import { useAuth } from "@/lib/useAuth";
 import {
   MAX_CANDIDATES,
   MAX_CANDIDATE_LENGTH,
   MAX_TITLE_LENGTH,
-  parseCreatedElectionId,
   validateCandidates,
   validateTitle,
 } from "@/lib/elections";
-import { getWalletSigner, useWallet } from "@/lib/useWallet";
 
 export default function CreateElectionPage() {
   const router = useRouter();
-  const { account, hasWallet, connect, error: walletError } = useWallet();
+  const { user, loading } = useAuth();
   const [title, setTitle] = useState("");
   const [candidates, setCandidates] = useState<string[]>(["", ""]);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ kind: "error" | "info"; text: string } | null>(null);
+
+  useEffect(() => {
+    if (!loading && !user) window.location.replace("/login?next=/elections/create");
+  }, [loading, user]);
 
   if (!factoryConfigured()) {
     return (
@@ -45,22 +51,17 @@ export default function CreateElectionPage() {
 
     setBusy(true);
     try {
-      const signer = await getWalletSigner();
-      const factory = getElectionFactory(signer);
-      const tx = await factory.createElection(t.value, c.cleaned);
-      setStatus({ kind: "info", text: "Creating your election. Waiting for confirmation..." });
-      const receipt = await tx.wait();
-      const id = parseCreatedElectionId(factory, receipt);
-      if (id === null) {
-        setStatus({ kind: "info", text: "Election created. Find it under All elections." });
-        router.push("/elections");
-      } else {
-        router.push(`/elections/${id}`);
-      }
-    } catch (err) {
-      setStatus({ kind: "error", text: describeError(err) });
+      setStatus({ kind: "info", text: "Creating your election. This can take up to a minute..." });
+      const data = await api<{ electionId: number }>("/api/org/create", { title: t.value, candidates: c.cleaned });
+      router.push(`/elections/${data.electionId}`);
+    } catch (err: any) {
+      setStatus({ kind: "error", text: err?.message || "Could not create the election." });
       setBusy(false);
     }
+  }
+
+  if (!loading && !user) {
+    return <main><h1>Create an election</h1><p><Link href="/login?next=/elections/create">Sign in</Link> to continue.</p></main>;
   }
 
   const previewNames = candidates.map((c) => c.trim()).filter(Boolean);
@@ -70,11 +71,10 @@ export default function CreateElectionPage() {
       <div className="page-title-row">
         <h1>Create an election</h1>
         <p className="lede">
-          You will be the only person who can add voters and open or close voting. Candidates cannot be changed afterwards.
+          Only you (and the site owner) can add voters and open or close voting. No wallet is needed. Candidates cannot be changed afterwards.
         </p>
       </div>
 
-      {walletError && <div className="status-banner error">{walletError}</div>}
       {status && (
         <div className={`status-banner ${status.kind === "error" ? "error" : ""}`} role="status">
           {status.text}
@@ -126,25 +126,11 @@ export default function CreateElectionPage() {
           </div>
 
           <div className="field" style={{ marginBottom: 0 }}>
-            {account ? (
-              <button type="submit" className="primary btn-lg" disabled={busy}>
-                {busy ? "Creating..." : "Create election"}
-              </button>
-            ) : (
-              <button type="button" className="primary btn-lg" onClick={connect}>
-                Connect wallet to create
-              </button>
-            )}
+            <button type="submit" className="primary btn-lg" disabled={busy || !user}>
+              {busy ? "Creating..." : "Create election"}
+            </button>
             <p className="hint" style={{ marginTop: 12 }}>
-              {account ? (
-                <>
-                  Creating as <span className="mono">{account}</span>. You&apos;ll confirm in your wallet.
-                </>
-              ) : hasWallet === false ? (
-                "You need a wallet such as MetaMask to create an election."
-              ) : (
-                "Creating an election is a blockchain transaction, so you'll confirm it in your wallet."
-              )}
+              Signed in as <strong>{user?.username ?? "..."}</strong>. The site pays the blockchain fee for you.
             </p>
           </div>
         </form>
