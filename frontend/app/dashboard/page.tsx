@@ -8,6 +8,7 @@ import { passwordError } from "@/lib/auth";
 import { fetchElectionSummary, type ElectionSummary } from "@/lib/elections";
 import { factoryConfigured } from "@/lib/contracts";
 import { useAuth } from "@/lib/useAuth";
+import { useAutoDismiss } from "@/lib/useAutoDismiss";
 
 export default function Dashboard() {
   const { user, loading } = useAuth();
@@ -103,6 +104,7 @@ function ChangePassword({ username }: { username: string }) {
   const [next, setNext] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: "error" | "success"; text: string } | null>(null);
+  useAutoDismiss(msg, () => setMsg(null));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();

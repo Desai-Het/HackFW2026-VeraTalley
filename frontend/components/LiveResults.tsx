@@ -12,7 +12,7 @@ type Props = {
   /** Which candidate rows just received a new vote since the last poll - true triggers a brief
    *  highlight so a flow of votes is visible at a glance, not just a number changing. */
   pulsed: boolean[];
-  /** Size of the allowlist, so the page can show how many registered voters haven't voted yet.
+  /** Everyone approved to vote (invited, plus wallets added directly), so the page can show how many haven't voted yet.
    *  Null while that's still loading. */
   registeredVoters: number | null;
 };
@@ -56,7 +56,7 @@ export default function LiveResults({ title, candidates, tally, state, pulsed, r
           <div className="live-stat">
             <span className="live-stat-number">{remaining}</span>
             <span className="live-stat-label">
-              of {registeredVoters} registered {registeredVoters === 1 ? "voter" : "voters"} still to vote
+              of {registeredVoters} approved {registeredVoters === 1 ? "voter" : "voters"} still to vote
             </span>
           </div>
         )}

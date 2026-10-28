@@ -14,8 +14,9 @@ export default function SiteNav() {
   const onHome = pathname === "/";
   const onCreate = pathname === "/elections/create";
   const onList = pathname === "/elections";
-  const onVote = /^\/elections\/[^/]+\/vote(\/|$)/.test(pathname);
-  const onRegister = /^\/register(\/|$)/.test(pathname);
+  // Pages a voter uses (register, vote, check where the vote went, recount) get the brand only.
+  const onVoterPage =
+    /^\/(register|check)(\/|$)/.test(pathname) || /^\/elections\/[^/]+\/(vote|verify)(\/|$)/.test(pathname);
   const { user, signOut } = useAuth();
 
   return (
@@ -30,7 +31,7 @@ export default function SiteNav() {
             Sign in
           </Link>
         )}
-        {!onHome && !onRegister && (
+        {!onHome && !onVoterPage && (
           <>
             {!onList && (
               <Link href="/elections" className="site-nav-link">
@@ -50,7 +51,7 @@ export default function SiteNav() {
                     Accounts
                   </Link>
                 )}
-                {!onCreate && !onVote && (
+                {!onCreate && (
                   <Link href="/elections/create" className="btn primary btn-sm">
                     Create election
                   </Link>

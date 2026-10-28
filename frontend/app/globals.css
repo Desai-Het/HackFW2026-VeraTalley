@@ -1357,6 +1357,7 @@ summary:focus-visible {
 .live-summary {
   display: flex;
   flex-wrap: wrap;
+  justify-content: space-between;
   gap: 32px;
   margin-top: 28px;
   padding-top: 20px;
@@ -1365,8 +1366,8 @@ summary:focus-visible {
 
 .live-stat {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 12px;
 }
 
 .live-stat-number {
@@ -1998,23 +1999,30 @@ summary:focus-visible {
 .ballot-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .ballot-head h2 { margin: 0; }
 .badge-pulse { position: relative; display: inline-flex; isolation: isolate; }
-.badge-pulse::before {
+.badge-pulse::before,
+.badge-pulse::after {
   content: "";
   position: absolute;
-  inset: 0;
+  inset: -10px -16px;
   z-index: -1;
-  border-radius: 999px;
-  background: var(--accent);
-  animation: badge-heartbeat 1.6s ease-in-out infinite;
+  border-radius: 50%;
+  /* Soft edge: bright in the middle, fading to nothing, so the wave has no hard outline. */
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--accent) 60%, transparent) 0%,
+    color-mix(in srgb, var(--accent) 28%, transparent) 45%,
+    transparent 100%
+  );
+  opacity: 0;
+  animation: badge-wave 3.2s ease-out infinite;
 }
-@keyframes badge-heartbeat {
-  0%, 40%, 100% { transform: scale(1); opacity: 0; }
-  10% { transform: scale(1.45, 1.8); opacity: 0.55; }
-  22% { transform: scale(1.1, 1.25); opacity: 0.3; }
-  30% { transform: scale(1.35, 1.65); opacity: 0.45; }
+.badge-pulse::after { animation-delay: 1.6s; }
+@keyframes badge-wave {
+  0% { transform: scale(0.7); opacity: 0.9; }
+  100% { transform: scale(1.5); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .badge-pulse::before { animation: none; }
+  .badge-pulse::before, .badge-pulse::after { animation: none; }
 }
 
 /* Election status pill sits beside the election's heading everywhere it is shown. */

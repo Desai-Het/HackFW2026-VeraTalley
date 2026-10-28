@@ -70,12 +70,14 @@ export default function LiveStatsPage() {
       const provider = getReadProvider();
       const ballot = getElectionBallotAt(ballotAddress, provider);
       const registry = getVoterRegistryAt(registryAddress, provider);
-      const [t, c, tl, s, vc] = await Promise.all([
+      const [t, c, tl, s, vc, ic, icc] = await Promise.all([
         ballot.title(),
         ballot.getCandidates(),
         ballot.getTally(),
         ballot.state(),
         registry.voterCount(),
+        registry.inviteCount(),
+        registry.inviteClaimedCount(),
       ]);
       const prev = prevTally.current;
       if (prev.length === tl.length && prev.length > 0) {
@@ -92,7 +94,7 @@ export default function LiveStatsPage() {
       setCandidates(c);
       setTally(tl);
       setState(Number(s));
-      setRegisteredVoters(Number(vc));
+      setRegisteredVoters(Number(ic) + Number(vc) - Number(icc)); // everyone invited, plus wallets added directly
     } catch (err) {
       console.error("Failed to load live results", err);
     }

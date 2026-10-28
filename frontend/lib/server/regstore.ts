@@ -1,7 +1,8 @@
+import { randomUUID } from "crypto";
 import { promises as fs } from "fs";
 import path from "path";
 import { ApiError, CHAIN_ID } from "./config";
-import { DEFAULT_CONFIG, type RegConfig, type RegRecord } from "../registration";
+import { DEFAULT_CONFIG, MAX_REGISTRATIONS_PER_ELECTION, emailKey, type RegConfig, type RegRecord } from "../registration";
 
 /** Where registrations live: one JSON file on the server's disk.
  *
@@ -93,14 +94,33 @@ export function publicRecord(r: StoredRegistration): RegRecord {
   return { id, name, email, extra, createdAt, status, flags, invited };
 }
 
-/** After invitations go out, remember which people have one. */
+/** After invitations go out, remember which people have one. Emails the organiser typed in by
+ *  hand (nobody registered them) are added to the list too, already approved and invited. */
 export async function markInvited(registry: string, emails: string[]): Promise<void> {
   const wanted = new Set(emails.map((e) => e.trim().toLowerCase()));
   if (wanted.size === 0) return;
   const key = electionKey(registry);
   await mutate((d) => {
-    const el = d.elections[key];
-    if (!el) return;
+    const el = dataOf(d, key);
     for (const r of el.registrations) if (wanted.has(r.email)) r.invited = true;
+    for (const email of wanted) {
+      const ek = emailKey(email);
+      if (el.registrations.some((r) => r.emailKey === ek)) continue;
+      if (el.registrations.length >= MAX_REGISTRATIONS_PER_ELECTION) break;
+      el.registrations.push({
+        id: randomUUID(),
+        name: "",
+        email,
+        extra: {},
+        createdAt: Date.now(),
+        status: "approved",
+        flags: [],
+        invited: true,
+        emailKey: ek,
+        deviceHash: "",
+        ipHash: "",
+        decided: true,
+      });
+    }
   });
 }
