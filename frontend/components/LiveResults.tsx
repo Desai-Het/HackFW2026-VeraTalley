@@ -1,6 +1,7 @@
 "use client";
 
 import TallyScene from "@/components/TallySceneLazy";
+import WinnerBanner from "@/components/WinnerBanner";
 import { leaders } from "@/lib/verify";
 
 type Props = {
@@ -34,6 +35,10 @@ export default function LiveResults({ title, candidates, tally, state, pulsed, r
         {STATE_COPY[state] ?? STATE_COPY[0]}
       </p>
       <h1 className="live-title">{title || "Election"}</h1>
+
+      {state === 2 && (
+        <WinnerBanner names={winners.map((i) => candidates[i])} votes={winners.length ? totals[winners[0]] : 0} />
+      )}
 
       <TallyScene candidates={candidates} tally={totals} closed={state === 2} labelAll winners={winners} />
 

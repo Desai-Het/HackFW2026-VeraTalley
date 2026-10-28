@@ -6,6 +6,7 @@ import AdminPanel from "@/components/AdminPanel";
 import CandidateList from "@/components/CandidateList";
 import TallyScene from "@/components/TallySceneLazy";
 import StateBadge from "@/components/StateBadge";
+import WinnerBanner from "@/components/WinnerBanner";
 import { getElectionBallotAt, getReadProvider, getVoterRegistryAt } from "@/lib/contracts";
 import { shortAddress } from "@/lib/elections";
 import { useWallet } from "@/lib/useWallet";
@@ -205,19 +206,7 @@ export default function ElectionView({ registryAddress, ballotAddress, electionI
         {manage && <div className={ballotState === 0 ? "order-first" : "order-late"}>{manage}</div>}
 
         {ballotState === 2 && !loading && (
-          <div className="result-banner" role="status">
-            {top.length === 0 && <strong>Voting is closed. No votes were cast.</strong>}
-            {top.length === 1 && (
-              <strong>
-                Result: {candidates[top[0]]} won with {tally[top[0]].toString()} {tally[top[0]] === 1n ? "vote" : "votes"}.
-              </strong>
-            )}
-            {top.length > 1 && (
-              <strong>
-                Result: a tie between {top.map((i) => candidates[i]).join(" and ")}, with {tally[top[0]].toString()} each.
-              </strong>
-            )}
-          </div>
+          <WinnerBanner names={top.map((i) => candidates[i])} votes={top.length ? Number(tally[top[0]]) : 0} />
         )}
 
         {/* While setting up, the organiser sees only the manage steps; the ballot is for voters. */}

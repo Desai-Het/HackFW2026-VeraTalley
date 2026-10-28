@@ -471,13 +471,37 @@ summary:focus-visible {
   color: var(--success-text);
 }
 
-.result-banner {
+.winner-banner {
   border-radius: var(--radius);
-  padding: 16px 20px;
-  margin: 0 0 16px;
+  padding: 28px 20px;
+  margin: 0 0 20px;
+  text-align: center;
   background: var(--accent-soft);
-  color: var(--success-text);
-  font-size: 1.05rem;
+  border: 1px solid var(--accent);
+  box-shadow: 0 0 36px -8px var(--accent);
+}
+
+.winner-label {
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.winner-name {
+  margin: 0;
+  font-size: clamp(2rem, 6vw, 3.4rem);
+  font-weight: 800;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.winner-detail {
+  margin: 8px 0 0;
+  font-size: 1.1rem;
+  color: var(--muted);
 }
 
 /* ---- Landing page ---- */
