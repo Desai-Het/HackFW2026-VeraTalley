@@ -106,7 +106,7 @@ export default function AdminPanel({
 
       {electionId && state !== 2 && (
         <div className="field">
-          <StepHead n={numbered ? 1 : undefined} title="Collect registrations (optional)" />
+          <StepHead n={numbered ? 1 : undefined} title="Collect registrations" />
           <div className={numbered ? "setup-body" : undefined}>
             <RegistrationPanel
               electionId={Number(electionId)}
@@ -196,7 +196,7 @@ export default function AdminPanel({
                 </div>
               </div>
             ) : (
-              <button onClick={() => setConfirming("open")} disabled={busy}>
+              <button className="primary" onClick={() => setConfirming("open")} disabled={busy}>
                 Open voting
               </button>
             )}

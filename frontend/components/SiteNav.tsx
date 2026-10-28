@@ -15,6 +15,7 @@ export default function SiteNav() {
   const onCreate = pathname === "/elections/create";
   const onList = pathname === "/elections";
   const onVote = /^\/elections\/[^/]+\/vote(\/|$)/.test(pathname);
+  const onRegister = /^\/register(\/|$)/.test(pathname);
   const { user, signOut } = useAuth();
 
   return (
@@ -29,7 +30,7 @@ export default function SiteNav() {
             Sign in
           </Link>
         )}
-        {!onHome && (
+        {!onHome && !onRegister && (
           <>
             {!onList && (
               <Link href="/elections" className="site-nav-link">

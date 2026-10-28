@@ -20,7 +20,7 @@ type Props = {
   onLoadApproved: (emails: string[]) => void;
 };
 
-type Status = { kind: "error" | "success" | "info"; text: string } | null;
+type Status = { kind: "error" | "success" | "info"; text: string; inline?: boolean } | null;
 
 const STATUS_RANK: Record<string, number> = { pending: 0, approved: 1, rejected: 2 };
 
@@ -103,15 +103,15 @@ export default function RegistrationPanel({ electionId, state, onLoadApproved }:
     return () => clearInterval(t);
   }, [session, busy, call, apply]);
 
-  async function run(body: Record<string, unknown>, okText?: string) {
+  async function run(body: Record<string, unknown>, okText?: string, inline?: boolean) {
     setBusy(true);
     setStatus(null);
     try {
       apply(await call(body));
       if (body.action === "decide") setSelected(new Set()); // a decision is done: start the next selection fresh
-      if (okText) setStatus({ kind: "success", text: okText });
+      if (okText) setStatus({ kind: "success", text: okText, inline });
     } catch (err: any) {
-      setStatus({ kind: "error", text: err?.message || "Something went wrong." });
+      setStatus({ kind: "error", text: err?.message || "Something went wrong.", inline });
       call({ action: "list" }).then((d) => apply(d), () => undefined); // show what is really saved
     } finally {
       setBusy(false);
@@ -152,7 +152,8 @@ export default function RegistrationPanel({ electionId, state, onLoadApproved }:
     const next = { ...config, open: open ?? config.open, allowedDomains: domainsText.split(/[\s,;]+/).filter(Boolean) };
     return run(
       { action: "config", config: next },
-      open === true ? "Registration is open. Share the QR code." : open === false ? "Registration is closed." : "Settings saved."
+      open === true ? "Registration is open. Share the QR code." : open === false ? "Registration is closed." : "Settings saved.",
+      open === undefined
     );
   }
 
@@ -209,7 +210,7 @@ export default function RegistrationPanel({ electionId, state, onLoadApproved }:
 
   return (
     <div>
-      {status && (
+      {status && !status.inline && (
         <div className={`status-banner ${status.kind === "error" ? "error" : status.kind === "success" ? "success" : ""}`} role="status">
           {status.text}
         </div>
@@ -217,70 +218,8 @@ export default function RegistrationPanel({ electionId, state, onLoadApproved }:
 
       {!locked && (
         <>
-          <label className="reg-switch">
-            <input type="checkbox" checked={config.open} disabled={busy} onChange={(e) => {
-                const open = e.target.checked;
-                setConfig((c) => ({ ...c, open }));
-                saveSettings(open);
-              }}
-            />
-            <span>
-              <strong>{config.open ? "Registration is open" : "Registration is closed"}</strong>
-              {" "}(it closes by itself when you open voting)
-            </span>
-          </label>
-
-          {config.open && (
-            <div className="reg-qr">
-              <ShareQrCode
-                path={registrationPath(electionId, linkKey)}
-                shareTitle="Register to vote"
-                alt="QR code that opens the registration form"
-              />
-              <div>
-                <p className="hint">
-                  Show this QR code on a screen or print it. Only people who scan it (or get its link) can register, once each.
-                  Share the link only with the people you want to register.
-                </p>
-                <div className="row-actions">
-                  <a className="btn" href={`/elections/${electionId}/live#${linkKey}`} target="_blank" rel="noreferrer">
-                    Open the big screen with this QR
-                  </a>
-                  {!confirmNewLink ? (
-                    <button type="button" onClick={() => setConfirmNewLink(true)} disabled={busy}>
-                      New QR code
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        className="primary"
-                        disabled={busy}
-                        onClick={async () => {
-                          setConfirmNewLink(false);
-                          await run({ action: "new-link" }, "New QR code made. The old one no longer works.");
-                        }}
-                      >
-                        Yes, replace it
-                      </button>
-                      <button type="button" onClick={() => setConfirmNewLink(false)}>
-                        Cancel
-                      </button>
-                    </>
-                  )}
-                </div>
-                {onLocalhost && (
-                  <div className="status-banner error" role="status">
-                    You are on <span className="mono">localhost</span>, which phones cannot open. Open the app on your real web address before
-                    sharing this code.
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
           <details className="reg-settings">
-            <summary>Form settings</summary>
+            <summary>Form Settings (Optional)</summary>
             <div className="field">
               <label htmlFor="reg-intro">Message above the form (optional)</label>
               <input id="reg-intro" type="text" maxLength={300} value={config.intro} onChange={(e) => edit({ intro: e.target.value })} />
@@ -344,7 +283,91 @@ export default function RegistrationPanel({ electionId, state, onLoadApproved }:
             <button onClick={() => saveSettings()} disabled={busy}>
               Save settings
             </button>
+            {status?.inline && (
+              <div className={`status-banner reg-inline-status ${status.kind === "error" ? "error" : status.kind === "success" ? "success" : ""}`} role="status">
+                <span>{status.text}</span>
+                <button type="button" className="reg-dismiss" aria-label="Dismiss message" onClick={() => setStatus(null)}>
+                  ×
+                </button>
+              </div>
+            )}
           </details>
+
+          <div className="reg-toggle-row">
+            <button
+              type="button"
+              className="primary"
+              disabled={busy}
+              onClick={() => {
+                const open = !config.open;
+                setConfig((c) => ({ ...c, open }));
+                saveSettings(open);
+              }}
+            >
+              {config.open ? "Close Registration" : "Open Registration"}
+            </button>
+            <span
+              className="reg-help"
+              role="img"
+              tabIndex={0}
+              aria-label="Registration is closed (it closes by itself when you open voting)"
+            >
+              ?
+              <span className="reg-help-tip" aria-hidden="true">
+                Registration is closed (it closes by itself when you open voting)
+              </span>
+            </span>
+          </div>
+          <p className="hint">{config.open ? "Registration is currently open" : "Registration is not open yet!"}</p>
+
+          {config.open && (
+            <div className="reg-qr">
+              <ShareQrCode
+                path={registrationPath(electionId, linkKey)}
+                shareTitle="Register to vote"
+                alt="QR code that opens the registration form"
+              />
+              <div>
+                <p className="hint">
+                  Show this QR code on a screen or print it. Only people who scan it (or get its link) can register, once each.
+                  Share the link only with the people you want to register.
+                </p>
+                <div className="row-actions">
+                  <a className="btn" href={`/elections/${electionId}/live#${linkKey}`} target="_blank" rel="noreferrer">
+                    Open Live Count
+                  </a>
+                  {!confirmNewLink ? (
+                    <button type="button" onClick={() => setConfirmNewLink(true)} disabled={busy}>
+                      New QR code
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="primary"
+                        disabled={busy}
+                        onClick={async () => {
+                          setConfirmNewLink(false);
+                          await run({ action: "new-link" }, "New QR code made. The old one no longer works.");
+                        }}
+                      >
+                        Yes, replace it
+                      </button>
+                      <button type="button" onClick={() => setConfirmNewLink(false)}>
+                        Cancel
+                      </button>
+                    </>
+                  )}
+                </div>
+                {onLocalhost && (
+                  <div className="status-banner error" role="status">
+                    You are on <span className="mono">localhost</span>, which phones cannot open. Open the app on your real web address before
+                    sharing this code.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </>
       )}
 
