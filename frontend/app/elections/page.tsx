@@ -134,12 +134,14 @@ export default function ElectionsPage() {
             {visible.map((e) => (
               <li key={e.id}>
                 <Link href={`/elections/${e.id}`} className="election-card" data-tilt="6">
-                  <span className="election-card-title">{e.title}</span>
+                  <span className="election-card-head">
+                    <span className="election-card-title">{e.title}</span>
+                    <StateBadge state={e.state} />
+                  </span>
                   <span className="election-card-meta">
                     <span>
                       {e.candidateCount} candidates, by <span className="mono">{shortAddress(e.creator)}</span>
                     </span>
-                    <StateBadge state={e.state} />
                   </span>
                 </Link>
               </li>

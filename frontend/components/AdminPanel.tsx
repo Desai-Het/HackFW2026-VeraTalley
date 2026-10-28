@@ -90,6 +90,36 @@ export default function AdminPanel({
 
   if (state === 2 && !status) return null;
 
+  // While voting is open the organiser only needs to be able to close it; the setup steps are gone.
+  if (state === 1) {
+    return (
+      <div aria-label="Election admin controls">
+        {status && status.kind !== "success" && (
+          <div className={`status-banner ${status.kind === "error" ? "error" : ""}`} role="status">
+            {status.text}
+          </div>
+        )}
+        {confirming === "close" ? (
+          <div className="status-banner error" role="alert">
+            Closing voting is permanent. Nobody can vote afterwards and it cannot be reopened. Close voting now?
+            <div className="row-actions">
+              <button className="primary" onClick={() => changeState("close")} disabled={busy}>
+                Yes, close voting
+              </button>
+              <button onClick={() => setConfirming(null)} disabled={busy}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button className="primary close-voting-btn" onClick={() => setConfirming("close")} disabled={busy}>
+            Close voting
+          </button>
+        )}
+      </div>
+    );
+  }
+
   // Setup is a real sequence while the election is still a draft, so the steps are numbered then.
   const numbered = state === 0;
 
@@ -204,28 +234,6 @@ export default function AdminPanel({
         </div>
       )}
 
-      {state === 1 && (
-        <div className="field">
-          <StepHead title="Close voting" />
-          {confirming === "close" ? (
-            <div className="status-banner error" role="alert">
-              Closing voting is permanent. Nobody can vote afterwards and it cannot be reopened. Close voting now?
-              <div className="row-actions">
-                <button className="primary" onClick={() => changeState("close")} disabled={busy}>
-                  Yes, close voting
-                </button>
-                <button onClick={() => setConfirming(null)} disabled={busy}>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button onClick={() => setConfirming("close")} disabled={busy}>
-              Close voting
-            </button>
-          )}
-        </div>
-      )}
     </section>
   );
 }

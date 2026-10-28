@@ -44,6 +44,7 @@ export default function RegistrationPanel({ electionId, state, onLoadApproved }:
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<Status>(null);
   const [confirmPurge, setConfirmPurge] = useState(false);
+  const [loadedEmails, setLoadedEmails] = useState<Set<string>>(new Set()); // already put in the invite box
   const [onLocalhost, setOnLocalhost] = useState(false);
   const dirty = useRef(false);
   const locked = state !== 0;
@@ -137,6 +138,7 @@ export default function RegistrationPanel({ electionId, state, onLoadApproved }:
     }
     return c;
   }, [records]);
+  const toLoad = records.filter((r) => r.status === "approved" && !r.invited && !loadedEmails.has(r.email)).map((r) => r.email);
   const cleanPending = records.filter((r) => r.status === "pending" && r.flags.length === 0 && !r.invited);
 
   function setField(i: number, patch: Partial<{ label: string; required: boolean }>) {
@@ -379,16 +381,17 @@ export default function RegistrationPanel({ electionId, state, onLoadApproved }:
         {counts.rejected > 0 && <span>{counts.rejected} rejected</span>}
       </div>
 
-      {!locked && counts.ready > 0 && (
+      {!locked && toLoad.length > 0 && (
         <div className="row-actions">
           <button
             className="primary"
             onClick={() => {
               onLoadApproved(records.filter((r) => r.status === "approved" && !r.invited).map((r) => r.email));
+              setLoadedEmails(new Set(records.filter((r) => r.status === "approved" && !r.invited).map((r) => r.email)));
               setStatus({ kind: "success", text: `${counts.ready} email${counts.ready === 1 ? "" : "s"} added to the invitation box below. Press the send button there.` });
             }}
           >
-            Put {counts.ready} approved {counts.ready === 1 ? "email" : "emails"} in the invite box
+            Put {toLoad.length} approved {toLoad.length === 1 ? "email" : "emails"} in the invite box
           </button>
         </div>
       )}

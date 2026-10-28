@@ -20,11 +20,11 @@ type Status = { kind: "error" | "success" | "info"; text: string } | null;
 
 type Props = { registryAddress: string; ballotAddress: string; electionId?: string };
 
-/** One election, for anyone. Voters see a short prompt for where they stand (connect, ready,
+/** One election, for anyone. Voters see a short prompt for where they stand (ready,
  *  not registered, already voted), the ballot, and the result once closed. The election's admin
  *  additionally gets the manage panel. Technical details sit in a collapsed section. */
 export default function ElectionView({ registryAddress, ballotAddress, electionId }: Props) {
-  const { account, hasWallet, connect, error: walletError } = useWallet();
+  const { account, error: walletError } = useWallet();
   const myElections = useMyElections();
 
   const [title, setTitle] = useState("");
@@ -161,22 +161,7 @@ export default function ElectionView({ registryAddress, ballotAddress, electionI
         </div>
       );
     }
-    if (!account) {
-      return (
-        <div className="vote-prompt">
-          <p>
-            {hasWallet === false
-              ? "You need a wallet such as MetaMask to vote. You can still follow the results below."
-              : "Connect your wallet to vote in this election."}
-          </p>
-          {hasWallet !== false && (
-            <button className="primary" onClick={connect}>
-              Connect wallet
-            </button>
-          )}
-        </div>
-      );
-    }
+    if (!account) return null;
     const pill = (
       <span className="wallet-pill mono" title={account}>
         {shortAddress(account)}
@@ -222,7 +207,6 @@ export default function ElectionView({ registryAddress, ballotAddress, electionI
       <div className="election-head">
         <h1>{loading ? "Loading election..." : title || "Election"}</h1>
         <div className="meta-line">
-          <StateBadge state={ballotState} />
           {isAdmin && <span className="badge">You manage this election</span>}
           {!loading && (
             <span>
@@ -285,41 +269,44 @@ export default function ElectionView({ registryAddress, ballotAddress, electionI
           </div>
         )}
 
-        <section className="card" aria-label="Ballot">
-          {prompt()}
-          <h2 style={{ marginTop: 0 }}>{ballotState === 2 ? "Final results" : "Candidates"}</h2>
-          {loading ? (
-            <p>Loading...</p>
-          ) : (
-            <>
-              {showScene && (
-                <TallyScene candidates={candidates} tally={tally.map((x) => Number(x ?? 0n))} closed={ballotState === 2} />
-              )}
-              <div className={showScene ? "sr-only" : undefined}>
-                <CandidateList
-                  candidates={candidates}
-                  tally={tally}
-                  selectedId={selectedId}
-                  onSelect={setSelectedId}
-                  canVote={canVote}
-                />
-              </div>
-            </>
-          )}
-          {account && ballotState === 1 && (
-            <div className="ballot-actions">
-              <button className="primary" onClick={castVote} disabled={!canVote || selectedId === null || pending}>
-                {pending ? "Submitting..." : "Cast vote"}
-              </button>
+        {/* While setting up, the organiser sees only the manage steps; the ballot is for voters. */}
+        {!(isAdmin && ballotState === 0) && (
+          <section className="card" aria-label="Ballot">
+            {prompt()}
+            <div className="ballot-head">
+              <h2>{ballotState === 2 ? "Final results" : "Candidates"}</h2>
+              <StateBadge state={ballotState} />
             </div>
-          )}
-        </section>
+            {loading ? (
+              <p>Loading...</p>
+            ) : (
+              <>
+                {showScene && (
+                  <TallyScene candidates={candidates} tally={tally.map((x) => Number(x ?? 0n))} closed={ballotState === 2} />
+                )}
+                <div className={showScene ? "sr-only" : undefined}>
+                  <CandidateList
+                    candidates={candidates}
+                    tally={tally}
+                    selectedId={selectedId}
+                    onSelect={setSelectedId}
+                    canVote={canVote}
+                  />
+                </div>
+              </>
+            )}
+            {account && ballotState === 1 && (
+              <div className="ballot-actions">
+                <button className="primary" onClick={castVote} disabled={!canVote || selectedId === null || pending}>
+                  {pending ? "Submitting..." : "Cast vote"}
+                </button>
+              </div>
+            )}
+          </section>
+        )}
 
         {electionId && ballotState !== 0 && (
           <div className="tools-row">
-            <Link href={`/elections/${electionId}/verify`} className="btn">
-              Verify the count
-            </Link>
             <Link href={`/elections/${electionId}/live`} target="_blank" rel="noreferrer" className="btn">
               Open live display
             </Link>
