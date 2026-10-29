@@ -84,6 +84,34 @@ export function cleanText(raw: unknown, max: number): string {
   return typeof raw === "string" ? raw.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max) : "";
 }
 
+// Letters from any language, joined by single spaces, hyphens or apostrophes. No digits or symbols.
+const NAME_PATTERN = /^[\p{L}\p{M}]+(?:[ '\u2019-][\p{L}\p{M}]+)*$/u;
+
+// Well-formed address whose ending is a real domain ending, so typos like ".con" or ".cmo" are caught.
+// Two-letter endings are country codes and are all accepted; longer ones must be in this list.
+const EMAIL_PATTERN = /^[a-z0-9._%+-]+@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+([a-z]{2,})$/;
+const KNOWN_ENDINGS = new Set(
+  (
+    "com net org edu gov mil int info biz name pro mobi asia tel travel jobs museum coop aero cat xxx " +
+    "io ai app dev tech online site store shop xyz club live blog cloud email world today life news " +
+    "agency solutions services digital media network systems group company global team works " +
+    "academy school university institute education foundation community center city design studio " +
+    "health care clinic bank money finance legal law consulting"
+  ).split(" ")
+);
+
+/** Why this name and email can't be used to register, or null when both look right. */
+export function registrationProblem(name: string, email: string): string | null {
+  if (name.length < 2 || !NAME_PATTERN.test(name)) {
+    return "Please enter your name using letters only. Numbers and special characters aren't allowed.";
+  }
+  const ending = EMAIL_PATTERN.exec(email)?.[1];
+  if (email.length > 254 || !ending || (ending.length > 2 && !KNOWN_ENDINGS.has(ending))) {
+    return "Please enter a valid email address, like name@example.com.";
+  }
+  return null;
+}
+
 /** Turns the organiser's list of questions into safe, unique keys. */
 export function sanitizeFields(raw: unknown): RegField[] {
   if (!Array.isArray(raw)) return [];

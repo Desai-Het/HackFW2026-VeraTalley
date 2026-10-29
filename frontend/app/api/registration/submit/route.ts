@@ -1,6 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "crypto";
 import { NextResponse } from "next/server";
-import { isValidEmail } from "@/lib/invite";
 import {
   MAX_NAME_LEN,
   MAX_REGISTRATIONS_PER_ELECTION,
@@ -8,6 +7,7 @@ import {
   cleanText,
   domainAllowed,
   emailKey,
+  registrationProblem,
 } from "@/lib/registration";
 import { ApiError, ballotAt, clientKey, inviteSecret, rateLimit, reasonFrom, requireOrganiser, resolveElection } from "@/lib/server/config";
 import { linkKeyMatches } from "@/lib/server/regauth";
@@ -62,8 +62,8 @@ export async function POST(req: Request) {
 
     const name = cleanText(body?.name, MAX_NAME_LEN);
     const email = cleanText(body?.email, 254).toLowerCase();
-    if (name.length < 2) throw new ApiError("Please enter your name.");
-    if (!isValidEmail(email)) throw new ApiError("Please enter a valid email address.");
+    const problem = registrationProblem(name, email);
+    if (problem) throw new ApiError(problem);
     if (body?.consent !== true) throw new ApiError("Please tick the box to agree.");
 
     const key = electionKey(election.registry);

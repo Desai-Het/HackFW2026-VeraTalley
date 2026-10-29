@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import type { RegField } from "@/lib/registration";
+import { registrationProblem, type RegField } from "@/lib/registration";
 
 type Info =
   | { kind: "loading" }
@@ -58,6 +58,12 @@ export default function RegisterPage() {
     if (busy) return;
     setBusy(true);
     setError(null);
+    const problem = registrationProblem(name.replace(/\s+/g, " ").trim(), email.trim().toLowerCase());
+    if (problem) {
+      setError(problem);
+      setBusy(false);
+      return;
+    }
     try {
       const res = await fetch("/api/registration/submit", {
         method: "POST",
