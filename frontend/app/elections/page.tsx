@@ -11,13 +11,12 @@ import { useAuth, useMyElections } from "@/lib/useAuth";
 
 const PAGE_SIZE = 24;
 
-type Filter = "all" | "open" | "closed" | "mine";
+type Filter = "all" | "open" | "closed";
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "open", label: "Open" },
   { id: "closed", label: "Closed" },
-  { id: "mine", label: "My elections" },
 ];
 
 export default function ElectionsPage() {
@@ -29,7 +28,7 @@ export default function ElectionsPage() {
   const [shown, setShown] = useState(PAGE_SIZE);
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const myIds = useMyElections();
 
   const load = useCallback(async () => {
@@ -53,13 +52,18 @@ export default function ElectionsPage() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    if (!authLoading && !user) window.location.replace("/login?next=/elections");
+  }, [authLoading, user]);
+
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return items.filter((e) => {
+      // Only the elections this signed-in account created are listed.
+      if (!(myIds && myIds.includes(e.id))) return false;
       if (q && !e.title.toLowerCase().includes(q)) return false;
       if (filter === "open") return e.state === 1;
       if (filter === "closed") return e.state === 2;
-      if (filter === "mine") return Boolean(myIds) && myIds!.includes(e.id);
       return true;
     });
   }, [items, filter, query, myIds]);
@@ -67,6 +71,8 @@ export default function ElectionsPage() {
   function pick(next: Filter) {
     setFilter(next);
   }
+
+  if (!user) return null; // signed-out visitors are sent to the login page
 
   return (
     <main className="page-wide">
@@ -106,12 +112,6 @@ export default function ElectionsPage() {
             </div>
           )}
 
-          {filter === "mine" && !user && (
-            <div className="status-banner">
-              <Link href="/login?next=/elections">Sign in</Link> to see the elections you run.
-            </div>
-          )}
-
           {!error && !loading && total === 0 && (
             <div className="empty">
               <h3>No elections yet</h3>
@@ -119,7 +119,7 @@ export default function ElectionsPage() {
             </div>
           )}
 
-          {!error && !loading && total > 0 && visible.length === 0 && !(filter === "mine" && !user) && (
+          {!error && !loading && total > 0 && visible.length === 0 && (
             <div className="empty">
               <h3>Nothing matches</h3>
               <p>

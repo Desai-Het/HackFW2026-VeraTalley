@@ -6,9 +6,10 @@ import { usePathname } from "next/navigation";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useAuth } from "@/lib/useAuth";
 
-/** Site header. Each destination is linked once: the landing page already carries the two main
- *  actions in its hero, so there the header shows only the brand; on every other page it offers
- *  the election list and the create action (hidden on the create page itself). */
+/** Site header. Each destination is linked once: for a signed-out visitor the landing page already
+ *  carries the two main actions in its hero, so there the header shows only the brand; on every
+ *  other page, and on the landing page once signed in, it offers the election list and the create
+ *  action (hidden on the create page itself, and on the landing page, whose hero already has it). */
 export default function SiteNav() {
   const pathname = usePathname() || "/";
   const onHome = pathname === "/";
@@ -31,7 +32,7 @@ export default function SiteNav() {
             Sign in
           </Link>
         )}
-        {!onHome && !onVoterPage && (
+        {(!onHome || user) && !onVoterPage && (
           <>
             {!onList && (
               <Link href="/elections" className="site-nav-link">
@@ -51,7 +52,7 @@ export default function SiteNav() {
                     Accounts
                   </Link>
                 )}
-                {!onCreate && (
+                {!onCreate && !onHome && (
                   <Link href="/elections/create" className="btn primary btn-sm">
                     Create election
                   </Link>

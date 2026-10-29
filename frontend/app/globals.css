@@ -663,22 +663,6 @@ summary:focus-visible {
   font-size: 0.93rem;
 }
 
-.honest-note {
-  margin-top: 72px;
-  padding: 20px 24px;
-  border-radius: var(--radius);
-  background: var(--note-bg);
-}
-
-.honest-note h3 {
-  margin-bottom: 4px;
-}
-
-.honest-note p {
-  margin: 0;
-  font-size: 0.93rem;
-}
-
 /* ---- Election cards and list ---- */
 
 .election-grid {
