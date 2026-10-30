@@ -167,8 +167,8 @@ export default function InviteVote({ registryAddress, ballotAddress, electionId 
 
   const header = (
     <div className="election-head">
-      <h1>{election.title}</h1>
-      <div className="meta-line">
+      <div className="title-row">
+        <h1>{election.title}</h1>
         <StateBadge state={election.state} />
       </div>
     </div>

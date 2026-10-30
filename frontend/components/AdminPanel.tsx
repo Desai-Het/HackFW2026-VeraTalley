@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import InvitePanel from "@/components/InvitePanel";
 import RegistrationPanel from "@/components/RegistrationPanel";
 import { api } from "@/lib/api";
+import { useAutoDismiss } from "@/lib/useAutoDismiss";
 import { MAX_VOTERS_PER_TRANSACTION, parseAddressList } from "@/lib/elections";
 
 type Props = {
@@ -12,7 +13,6 @@ type Props = {
   /** 0 = Draft, 1 = Open, 2 = Closed */
   state: number;
   voterCount: number;
-  candidateCount: number;
   /** Called after any confirmed change so the page re-reads the chain straight away. */
   onChanged: () => Promise<void> | void;
   /** Used to build the shareable voting link/QR code - not every page that renders this panel
@@ -32,7 +32,6 @@ export default function AdminPanel({
   ballotAddress,
   state,
   voterCount,
-  candidateCount,
   onChanged,
   electionId,
   title,
@@ -40,9 +39,13 @@ export default function AdminPanel({
   const [raw, setRaw] = useState("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<Status>(null);
+  useAutoDismiss(status, () => setStatus(null));
   const [confirming, setConfirming] = useState<Confirming>(null);
   const [mode, setMode] = useState<Mode>("email");
   const [prefill, setPrefill] = useState({ text: "", n: 0 });
+  const [liveLink, setLiveLink] = useState<string | null>(null);
+  const [listRefresh, setListRefresh] = useState(0);
+  const [listTarget, setListTarget] = useState<HTMLDivElement | null>(null); // where the registrations list is drawn
 
   const parsed = useMemo(() => parseAddressList(raw), [raw]);
   const tooMany = parsed.valid.length > MAX_VOTERS_PER_TRANSACTION;
@@ -90,6 +93,36 @@ export default function AdminPanel({
 
   if (state === 2 && !status) return null;
 
+  // While voting is open the organiser only needs to be able to close it; the setup steps are gone.
+  if (state === 1) {
+    return (
+      <div aria-label="Election admin controls">
+        {status && status.kind !== "success" && (
+          <div className={`status-banner ${status.kind === "error" ? "error" : ""}`} role="status">
+            {status.text}
+          </div>
+        )}
+        {confirming === "close" ? (
+          <div className="status-banner" role="alert">
+            Closing voting is permanent. Nobody can vote afterwards and it cannot be reopened. Close voting now?
+            <div className="row-actions">
+              <button className="primary" onClick={() => changeState("close")} disabled={busy}>
+                Yes, close voting
+              </button>
+              <button onClick={() => setConfirming(null)} disabled={busy}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button className="primary close-voting-btn" onClick={() => setConfirming("close")} disabled={busy}>
+            Close voting
+          </button>
+        )}
+      </div>
+    );
+  }
+
   // Setup is a real sequence while the election is still a draft, so the steps are numbered then.
   const numbered = state === 0;
 
@@ -106,11 +139,14 @@ export default function AdminPanel({
 
       {electionId && state !== 2 && (
         <div className="field">
-          <StepHead n={numbered ? 1 : undefined} title="Collect registrations (optional)" />
+          <StepHead n={numbered ? 1 : undefined} title="Collect registrations" />
           <div className={numbered ? "setup-body" : undefined}>
             <RegistrationPanel
               electionId={Number(electionId)}
               state={state}
+              onLiveLink={setLiveLink}
+              listTarget={listTarget}
+              refreshSignal={listRefresh}
               onLoadApproved={(emails) => {
                 setMode("email");
                 setPrefill((p) => ({ text: emails.join("\n"), n: p.n + 1 }));
@@ -135,7 +171,16 @@ export default function AdminPanel({
               </div>
             )}
             {electionId && mode === "email" ? (
-              <InvitePanel registryAddress={registryAddress} electionId={Number(electionId)} state={state} onChanged={onChanged} prefill={prefill} />
+              <>
+                <InvitePanel registryAddress={registryAddress} electionId={Number(electionId)} state={state}
+                  onChanged={async () => {
+                    await onChanged();
+                    setListRefresh((n) => n + 1);
+                  }}
+                  prefill={prefill}
+                />
+                <div ref={setListTarget} />
+              </>
             ) : (
               <>
             <label htmlFor="voter-addresses" className="sr-only">
@@ -184,8 +229,7 @@ export default function AdminPanel({
           <div className="setup-body">
             {confirming === "open" ? (
               <div className="status-banner" role="alert">
-                Opening voting lets registered voters start casting votes, and the candidates cannot be changed. Open voting for{" "}
-                {candidateCount} candidates and {voterCount} registered {voterCount === 1 ? "voter" : "voters"}?
+                Opening voting lets registered voters start casting votes, and the candidates cannot be changed.
                 <div className="row-actions">
                   <button className="primary" onClick={() => changeState("open")} disabled={busy}>
                     Yes, open voting
@@ -196,36 +240,21 @@ export default function AdminPanel({
                 </div>
               </div>
             ) : (
-              <button onClick={() => setConfirming("open")} disabled={busy}>
-                Open voting
-              </button>
+              <div className="row-actions">
+                <button className="primary" onClick={() => setConfirming("open")} disabled={busy}>
+                  Open voting
+                </button>
+                {liveLink && (
+                  <a className="btn" href={liveLink} target="_blank" rel="noreferrer">
+                    Open Live Count
+                  </a>
+                )}
+              </div>
             )}
           </div>
         </div>
       )}
 
-      {state === 1 && (
-        <div className="field">
-          <StepHead title="Close voting" />
-          {confirming === "close" ? (
-            <div className="status-banner error" role="alert">
-              Closing voting is permanent. Nobody can vote afterwards and it cannot be reopened. Close voting now?
-              <div className="row-actions">
-                <button className="primary" onClick={() => changeState("close")} disabled={busy}>
-                  Yes, close voting
-                </button>
-                <button onClick={() => setConfirming(null)} disabled={busy}>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button onClick={() => setConfirming("close")} disabled={busy}>
-              Close voting
-            </button>
-          )}
-        </div>
-      )}
     </section>
   );
 }

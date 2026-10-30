@@ -8,8 +8,10 @@ import StateBadge from "@/components/StateBadge";
 import HeroLedger from "@/components/HeroLedgerLazy";
 import { factoryConfigured } from "@/lib/contracts";
 import { fetchVisibleElections, shortAddress, type ElectionSummary } from "@/lib/elections";
+import { useMyElections } from "@/lib/useAuth";
 
 const LATEST_COUNT = 3;
+const LATEST_SCAN = 50; // newest elections looked through to find this account's own
 
 const STEPS = [
   {
@@ -30,14 +32,16 @@ export default function Landing() {
   const configured = factoryConfigured();
   const [items, setItems] = useState<ElectionSummary[]>([]);
   const [loaded, setLoaded] = useState(!configured);
+  const myIds = useMyElections(); // null while signed out or not yet known
 
   useEffect(() => {
-    if (!configured) return;
+    if (!configured || !myIds) return;
     let cancelled = false;
     (async () => {
       try {
-        const { items: rows } = await fetchVisibleElections(LATEST_COUNT);
-        if (!cancelled) setItems(rows);
+        // Only the elections this signed-in account created are shown.
+        const { items: rows } = await fetchVisibleElections(LATEST_SCAN);
+        if (!cancelled) setItems(rows.filter((e) => myIds.includes(e.id)).slice(0, LATEST_COUNT));
       } catch (err) {
         console.error("Failed to load elections", err);
       } finally {
@@ -47,7 +51,7 @@ export default function Landing() {
     return () => {
       cancelled = true;
     };
-  }, [configured]);
+  }, [configured, myIds]);
 
   return (
     <main className="page-wide">
@@ -133,12 +137,14 @@ export default function Landing() {
             {items.map((e) => (
               <li key={e.id}>
                 <Link href={`/elections/${e.id}`} className="election-card" data-tilt="6">
-                  <span className="election-card-title">{e.title}</span>
+                  <span className="election-card-head">
+                    <span className="election-card-title">{e.title}</span>
+                    <StateBadge state={e.state} />
+                  </span>
                   <span className="election-card-meta">
                     <span>
                       {e.candidateCount} candidates, by <span className="mono">{shortAddress(e.creator)}</span>
                     </span>
-                    <StateBadge state={e.state} />
                   </span>
                 </Link>
               </li>
@@ -146,14 +152,6 @@ export default function Landing() {
           </ul>
         </section>
       )}
-
-      <aside className="honest-note">
-        <h3>Good to know</h3>
-        <p>
-          Votes are public: anyone can see which wallet voted for whom. That makes {APP_NAME} a good fit for open votes
-          among groups that want a result nobody can quietly change, and a poor fit for secret ballots.
-        </p>
-      </aside>
     </main>
   );
 }

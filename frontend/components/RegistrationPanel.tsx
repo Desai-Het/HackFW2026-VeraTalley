@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import ShareQrCode from "@/components/ShareQrCode";
 import { api } from "@/lib/api";
+import { useAutoDismiss } from "@/lib/useAutoDismiss";
 import {
   DEFAULT_CONFIG,
   FLAG_TEXT,
@@ -18,9 +20,15 @@ type Props = {
   state: number;
   /** Puts these emails into the invite box below, ready to send. */
   onLoadApproved: (emails: string[]) => void;
+  /** Tells the page the live-count link: set while registration is open, null otherwise. */
+  onLiveLink: (link: string | null) => void;
+  /** Where the registrations list (totals, approve/reject, the list itself) is drawn: under the invite box. */
+  listTarget: HTMLElement | null;
+  /** Changes whenever something outside the panel (sending invitations) may have changed the list. */
+  refreshSignal: number;
 };
 
-type Status = { kind: "error" | "success" | "info"; text: string } | null;
+type Status = { kind: "error" | "success" | "info"; text: string; place?: "settings" | "list" } | null;
 
 const STATUS_RANK: Record<string, number> = { pending: 0, approved: 1, rejected: 2 };
 
@@ -32,18 +40,19 @@ function csvCell(v: string): string {
 /** Collect sign-ups through a QR code, check them, and move the good ones into the voter list.
  *  Registrations are kept on the server, so the organiser signs in once (a free signature, no gas)
  *  to see them. */
-export default function RegistrationPanel({ electionId, state, onLoadApproved }: Props) {
+export default function RegistrationPanel({ electionId, state, onLoadApproved, onLiveLink, listTarget, refreshSignal }: Props) {
   const [session, setSession] = useState<boolean>(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [config, setConfig] = useState<RegConfig>(DEFAULT_CONFIG);
   const [domainsText, setDomainsText] = useState("");
   const [records, setRecords] = useState<RegRecord[]>([]);
   const [linkKey, setLinkKey] = useState("");
-  const [confirmNewLink, setConfirmNewLink] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<Status>(null);
+  useAutoDismiss(status, () => setStatus(null));
   const [confirmPurge, setConfirmPurge] = useState(false);
+  const [loadedEmails, setLoadedEmails] = useState<Set<string>>(new Set()); // already put in the invite box
   const [onLocalhost, setOnLocalhost] = useState(false);
   const dirty = useRef(false);
   const locked = state !== 0;
@@ -51,6 +60,11 @@ export default function RegistrationPanel({ electionId, state, onLoadApproved }:
   useEffect(() => {
     setOnLocalhost(/^(localhost|127\.|\[::1\])/.test(window.location.hostname));
   }, []);
+
+  const liveLink = !locked && config.open ? `/elections/${electionId}/live#${linkKey}` : null;
+  useEffect(() => {
+    onLiveLink(liveLink);
+  }, [liveLink, onLiveLink]);
 
   const apply = useCallback((data: { config: RegConfig; registrations: RegRecord[]; linkKey?: string }, keepForm = false) => {
     setRecords(data.registrations);
@@ -91,6 +105,14 @@ export default function RegistrationPanel({ electionId, state, onLoadApproved }:
     };
   }, [call, apply]);
 
+  // Show people added by the invitation box straight away, without waiting for the next refresh.
+  useEffect(() => {
+    if (!session || refreshSignal === 0) return;
+    call({ action: "list" })
+      .then((d) => apply(d, true))
+      .catch(() => undefined);
+  }, [refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // While signed in, keep the list fresh as people register (every 8 seconds, only if the tab is visible).
   useEffect(() => {
     if (!session) return;
@@ -103,15 +125,15 @@ export default function RegistrationPanel({ electionId, state, onLoadApproved }:
     return () => clearInterval(t);
   }, [session, busy, call, apply]);
 
-  async function run(body: Record<string, unknown>, okText?: string) {
+  async function run(body: Record<string, unknown>, okText?: string, place?: "settings" | "list") {
     setBusy(true);
     setStatus(null);
     try {
       apply(await call(body));
       if (body.action === "decide") setSelected(new Set()); // a decision is done: start the next selection fresh
-      if (okText) setStatus({ kind: "success", text: okText });
+      if (okText) setStatus({ kind: "success", text: okText, place });
     } catch (err: any) {
-      setStatus({ kind: "error", text: err?.message || "Something went wrong." });
+      setStatus({ kind: "error", text: err?.message || "Something went wrong.", place });
       call({ action: "list" }).then((d) => apply(d), () => undefined); // show what is really saved
     } finally {
       setBusy(false);
@@ -137,6 +159,7 @@ export default function RegistrationPanel({ electionId, state, onLoadApproved }:
     }
     return c;
   }, [records]);
+  const toLoad = records.filter((r) => r.status === "approved" && !r.invited && !loadedEmails.has(r.email)).map((r) => r.email);
   const cleanPending = records.filter((r) => r.status === "pending" && r.flags.length === 0 && !r.invited);
 
   function setField(i: number, patch: Partial<{ label: string; required: boolean }>) {
@@ -152,7 +175,8 @@ export default function RegistrationPanel({ electionId, state, onLoadApproved }:
     const next = { ...config, open: open ?? config.open, allowedDomains: domainsText.split(/[\s,;]+/).filter(Boolean) };
     return run(
       { action: "config", config: next },
-      open === true ? "Registration is open. Share the QR code." : open === false ? "Registration is closed." : "Settings saved."
+      open === true ? "Registration is open. Share the QR code." : open === false ? "Registration is closed." : "Settings saved.",
+      open === undefined ? "settings" : undefined
     );
   }
 
@@ -209,7 +233,7 @@ export default function RegistrationPanel({ electionId, state, onLoadApproved }:
 
   return (
     <div>
-      {status && (
+      {status && !status.place && (
         <div className={`status-banner ${status.kind === "error" ? "error" : status.kind === "success" ? "success" : ""}`} role="status">
           {status.text}
         </div>
@@ -217,70 +241,8 @@ export default function RegistrationPanel({ electionId, state, onLoadApproved }:
 
       {!locked && (
         <>
-          <label className="reg-switch">
-            <input type="checkbox" checked={config.open} disabled={busy} onChange={(e) => {
-                const open = e.target.checked;
-                setConfig((c) => ({ ...c, open }));
-                saveSettings(open);
-              }}
-            />
-            <span>
-              <strong>{config.open ? "Registration is open" : "Registration is closed"}</strong>
-              {" "}(it closes by itself when you open voting)
-            </span>
-          </label>
-
-          {config.open && (
-            <div className="reg-qr">
-              <ShareQrCode
-                path={registrationPath(electionId, linkKey)}
-                shareTitle="Register to vote"
-                alt="QR code that opens the registration form"
-              />
-              <div>
-                <p className="hint">
-                  Show this QR code on a screen or print it. Only people who scan it (or get its link) can register, once each.
-                  Share the link only with the people you want to register.
-                </p>
-                <div className="row-actions">
-                  <a className="btn" href={`/elections/${electionId}/live#${linkKey}`} target="_blank" rel="noreferrer">
-                    Open the big screen with this QR
-                  </a>
-                  {!confirmNewLink ? (
-                    <button type="button" onClick={() => setConfirmNewLink(true)} disabled={busy}>
-                      New QR code
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        className="primary"
-                        disabled={busy}
-                        onClick={async () => {
-                          setConfirmNewLink(false);
-                          await run({ action: "new-link" }, "New QR code made. The old one no longer works.");
-                        }}
-                      >
-                        Yes, replace it
-                      </button>
-                      <button type="button" onClick={() => setConfirmNewLink(false)}>
-                        Cancel
-                      </button>
-                    </>
-                  )}
-                </div>
-                {onLocalhost && (
-                  <div className="status-banner error" role="status">
-                    You are on <span className="mono">localhost</span>, which phones cannot open. Open the app on your real web address before
-                    sharing this code.
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
           <details className="reg-settings">
-            <summary>Form settings</summary>
+            <summary>Form Settings (Optional)</summary>
             <div className="field">
               <label htmlFor="reg-intro">Message above the form (optional)</label>
               <input id="reg-intro" type="text" maxLength={300} value={config.intro} onChange={(e) => edit({ intro: e.target.value })} />
@@ -344,98 +306,168 @@ export default function RegistrationPanel({ electionId, state, onLoadApproved }:
             <button onClick={() => saveSettings()} disabled={busy}>
               Save settings
             </button>
-          </details>
-        </>
-      )}
-
-      <div className="reg-summary" aria-label="Registration totals">
-        <span>{counts.total} registered</span>
-        <span>{counts.ready} ready to invite</span>
-        <span>{counts.pending} need a look</span>
-        <span>{counts.invited} invited</span>
-        {counts.rejected > 0 && <span>{counts.rejected} rejected</span>}
-      </div>
-
-      {!locked && counts.ready > 0 && (
-        <div className="row-actions">
-          <button
-            className="primary"
-            onClick={() => {
-              onLoadApproved(records.filter((r) => r.status === "approved" && !r.invited).map((r) => r.email));
-              setStatus({ kind: "success", text: `${counts.ready} email${counts.ready === 1 ? "" : "s"} added to the invitation box below. Press the send button there.` });
-            }}
-          >
-            Put {counts.ready} approved {counts.ready === 1 ? "email" : "emails"} in the invite box
-          </button>
-        </div>
-      )}
-
-      {records.length > 0 && (
-        <>
-          {!locked && (
-            <div className="reg-toolbar">
-              {cleanPending.length > 0 && (
-                <button onClick={() => run({ action: "decide", decision: "approved", ids: cleanPending.map((r) => r.id) })} disabled={busy}>
-                  Approve all {cleanPending.length} without warnings
+            {status?.place === "settings" && (
+              <div className={`status-banner reg-inline-status ${status.kind === "error" ? "error" : status.kind === "success" ? "success" : ""}`} role="status">
+                <span>{status.text}</span>
+                <button type="button" className="reg-dismiss" aria-label="Dismiss message" onClick={() => setStatus(null)}>
+                  ×
                 </button>
-              )}
-              <button onClick={() => run({ action: "decide", decision: "approved", ids: [...selected] })} disabled={busy || selected.size === 0}>
-                Approve selected
-              </button>
-              <button onClick={() => run({ action: "decide", decision: "rejected", ids: [...selected] })} disabled={busy || selected.size === 0}>
-                Reject selected
-              </button>
+              </div>
+            )}
+          </details>
+
+          <div className="reg-toggle-row">
+            <button
+              type="button"
+              className="primary"
+              disabled={busy}
+              onClick={() => {
+                const open = !config.open;
+                setConfig((c) => ({ ...c, open }));
+                saveSettings(open);
+              }}
+            >
+              {config.open ? "Close Registration" : "Open Registration"}
+            </button>
+            <span
+              className="reg-help"
+              role="img"
+              tabIndex={0}
+              aria-label="Registration is closed (it closes by itself when you open voting)"
+            >
+              ?
+              <span className="reg-help-tip" aria-hidden="true">
+                Registration is closed (it closes by itself when you open voting)
+              </span>
+            </span>
+          </div>
+          <p className="hint">{config.open ? "Registration is currently open" : "Registration is not open yet!"}</p>
+
+          {config.open && (
+            <div className="reg-qr">
+              <ShareQrCode
+                path={registrationPath(electionId, linkKey)}
+                shareTitle="Register to vote"
+                alt="QR code that opens the registration form"
+              />
+              <div>
+                <p className="hint">
+                  Show this QR code on a screen or print it. Only people who scan it (or get its link) can register, once each.
+                  Share the link only with the people you want to register.
+                </p>
+                {onLocalhost && (
+                  <div className="status-banner error" role="status">
+                    You are on <span className="mono">localhost</span>, which phones cannot open. Open the app on your real web address before
+                    sharing this code.
+                  </div>
+                )}
+              </div>
             </div>
           )}
-          <ul className="reg-list">
-            {sorted.map((r) => (
-              <li key={r.id} className={`reg-item${r.flags.length > 0 && r.status === "pending" ? " flagged" : ""}`}>
-                <div className="reg-item-head">
-                  {!locked && !r.invited && (
-                    <input type="checkbox" aria-label={`Select ${r.name}`} checked={selected.has(r.id)} onChange={() => toggleSelected(r.id)} />
-                  )}
-                  <span className="reg-name">{r.name}</span>
-                  <span className="mono">{r.email}</span>
-                  <span className={`reg-pill ${r.invited ? "approved" : r.status}`}>{r.invited ? "invited" : r.status === "pending" ? "needs a look" : r.status}</span>
-                </div>
-                {Object.entries(r.extra).map(([k, v]) => (
-                  <div className="reg-extra" key={k}>
-                    {config.fields.find((f) => f.key === k)?.label ?? k}: {v}
-                  </div>
-                ))}
-                {r.flags.map((f) => (
-                  <div className="reg-flag" key={f}>
-                    Warning: {FLAG_TEXT[f] ?? f}
-                  </div>
-                ))}
-              </li>
-            ))}
-          </ul>
-          <div className="row-actions">
-            <button onClick={exportCsv}>Download list (CSV)</button>
-            {!confirmPurge ? (
-              <button onClick={() => setConfirmPurge(true)} disabled={busy}>
-                Delete all registration data
-              </button>
-            ) : (
-              <>
-                <button
-                  className="primary"
-                  onClick={async () => {
-                    setConfirmPurge(false);
-                    await run({ action: "purge", confirm: true }, "All registration data was deleted from the server.");
-                  }}
-                  disabled={busy}
-                >
-                  Yes, delete everything
-                </button>
-                <button onClick={() => setConfirmPurge(false)}>Cancel</button>
-              </>
-            )}
-          </div>
-          <p className="hint">Wallet-free voters stay private only if you delete this list once the event is over.</p>
         </>
       )}
+
+      {listTarget &&
+        createPortal(
+          <div>
+              {status?.place === "list" && (
+                <div className={`status-banner ${status.kind === "error" ? "error" : status.kind === "success" ? "success" : ""}`} role="status">
+                  {status.text}
+                </div>
+              )}
+
+              <div className="reg-summary" aria-label="Registration totals">
+                <span>{counts.total} registered</span>
+                <span>{counts.ready} ready to invite</span>
+                <span>{counts.pending} need a look</span>
+                <span>{counts.invited} invited</span>
+                {counts.rejected > 0 && <span>{counts.rejected} rejected</span>}
+              </div>
+
+              {!locked && toLoad.length > 0 && (
+                <div className="row-actions">
+                  <button
+                    className="primary"
+                    onClick={() => {
+                      onLoadApproved(records.filter((r) => r.status === "approved" && !r.invited).map((r) => r.email));
+                      setLoadedEmails(new Set(records.filter((r) => r.status === "approved" && !r.invited).map((r) => r.email)));
+                      setStatus({ kind: "success", text: `${counts.ready} email${counts.ready === 1 ? "" : "s"} added to the invitation box above. Press the send button there.`, place: "list" });
+                    }}
+                  >
+                    Put {toLoad.length} approved {toLoad.length === 1 ? "email" : "emails"} in the invite box
+                  </button>
+                </div>
+              )}
+
+              {records.length > 0 && (
+                <>
+                  {!locked && (
+                    <div className="reg-toolbar">
+                      {cleanPending.length > 0 && (
+                        <button onClick={() => run({ action: "decide", decision: "approved", ids: cleanPending.map((r) => r.id) }, undefined, "list")} disabled={busy}>
+                          Approve all {cleanPending.length} without warnings
+                        </button>
+                      )}
+                      <button onClick={() => run({ action: "decide", decision: "approved", ids: [...selected] }, undefined, "list")} disabled={busy || selected.size === 0}>
+                        Approve selected
+                      </button>
+                      <button onClick={() => run({ action: "decide", decision: "rejected", ids: [...selected] }, undefined, "list")} disabled={busy || selected.size === 0}>
+                        Reject selected
+                      </button>
+                    </div>
+                  )}
+                  <ul className="reg-list">
+                    {sorted.map((r) => (
+                      <li key={r.id} className={`reg-item${r.flags.length > 0 && r.status === "pending" ? " flagged" : ""}`}>
+                        <div className="reg-item-head">
+                          {!locked && !r.invited && (
+                            <input type="checkbox" aria-label={`Select ${r.name}`} checked={selected.has(r.id)} onChange={() => toggleSelected(r.id)} />
+                          )}
+                          <span className="reg-name">{r.name}</span>
+                          <span className="mono">{r.email}</span>
+                          <span className={`reg-pill ${r.invited ? "approved" : r.status}`}>{r.invited ? "invited" : r.status === "pending" ? "needs a look" : r.status}</span>
+                        </div>
+                        {Object.entries(r.extra).map(([k, v]) => (
+                          <div className="reg-extra" key={k}>
+                            {config.fields.find((f) => f.key === k)?.label ?? k}: {v}
+                          </div>
+                        ))}
+                        {r.flags.map((f) => (
+                          <div className="reg-flag" key={f}>
+                            Warning: {FLAG_TEXT[f] ?? f}
+                          </div>
+                        ))}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="row-actions">
+                    <button onClick={exportCsv}>Download list (CSV)</button>
+                    {!confirmPurge ? (
+                      <button onClick={() => setConfirmPurge(true)} disabled={busy}>
+                        Delete all registration data
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          className="primary"
+                          onClick={async () => {
+                            setConfirmPurge(false);
+                            await run({ action: "purge", confirm: true }, "All registration data was deleted from the server.", "list");
+                          }}
+                          disabled={busy}
+                        >
+                          Yes, delete everything
+                        </button>
+                        <button onClick={() => setConfirmPurge(false)}>Cancel</button>
+                      </>
+                    )}
+                  </div>
+                  <p className="hint">Wallet-free voters stay private only if you delete this list once the event is over.</p>
+                </>
+              )}
+          </div>,
+          listTarget
+        )}
     </div>
   );
 }

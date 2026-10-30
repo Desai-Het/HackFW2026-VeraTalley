@@ -14,6 +14,7 @@ import {
   ELECTION_BALLOT_ADDRESS,
 } from "@/lib/contracts";
 import { ensureCorrectNetwork, getTargetChainId } from "@/lib/network";
+import { useAutoDismiss } from "@/lib/useAutoDismiss";
 
 const POLL_INTERVAL_MS = 5000;
 const AMOY_CHAIN_ID = 80002;
@@ -37,6 +38,7 @@ export default function Home() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<Status>(null);
+  useAutoDismiss(status, () => setStatus(null));
   const [lastTxHash, setLastTxHash] = useState<string | null>(null);
 
   const refreshPublicData = useCallback(async () => {

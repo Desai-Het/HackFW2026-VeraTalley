@@ -102,9 +102,11 @@ export default function VerifyPage() {
 
   return (
     <main>
-      <h1>Verify: {phase.title}</h1>
+      <div className="title-row">
+        <h1>Verify: {phase.title}</h1>
+        <StateBadge state={phase.state} />
+      </div>
       <p>
-        <StateBadge state={phase.state} />{" "}
         <Link href={`/elections/${id}`}>Back to the election</Link>
       </p>
       <p>

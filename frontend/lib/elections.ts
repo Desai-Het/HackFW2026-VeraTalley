@@ -118,14 +118,14 @@ export async function fetchVisibleElections(
   limit: number,
   maxScan = 300
 ): Promise<{ items: ElectionSummary[]; total: number; more: boolean }> {
-  const total = Number(await getElectionFactory(getReadProvider()).electionCount());
+  const total = Number(await withRetry(() => getElectionFactory(getReadProvider()).electionCount()));
   const filtering = clientOrganisers().length > 0;
   const items: ElectionSummary[] = [];
   let next = total - 1;
   let scanned = 0;
   while (next >= 0 && items.length <= limit && scanned < maxScan) {
     const ids: number[] = [];
-    for (let i = 0; i < 12 && next - i >= 0; i++) ids.push(next - i);
+    for (let i = 0; i < 6 && next - i >= 0; i++) ids.push(next - i);
     next -= ids.length;
     scanned += ids.length;
     const rows = await Promise.all(ids.map((id) => fetchElectionSummary(id)));
@@ -134,17 +134,28 @@ export async function fetchVisibleElections(
   return { items: items.slice(0, limit), total, more: items.length > limit || next >= 0 };
 }
 
+/** Runs a read again, with a short pause, when the RPC drops it (rate limit or network blip), so one
+ *  failed request does not blank a whole list. A missing election is a real answer and is not retried. */
+async function withRetry<T>(read: () => Promise<T>, attempts = 4): Promise<T> {
+  for (let i = 1; ; i++) {
+    try {
+      return await read();
+    } catch (err) {
+      if (i >= attempts || isUnknownElectionError(err)) throw err;
+      await new Promise((resolve) => setTimeout(resolve, 400 * i));
+    }
+  }
+}
+
 /** One row of the elections list: factory record plus the few ballot fields worth showing. */
 export async function fetchElectionSummary(id: number): Promise<ElectionSummary> {
   const provider = getReadProvider();
   const factory = getElectionFactory(provider);
-  const [creator, registry, ballotAddress] = await factory.getElection(id);
+  const [creator, registry, ballotAddress] = await withRetry(() => factory.getElection(id));
   const ballot = getElectionBallotAt(ballotAddress, provider);
-  const [title, state, candidateCount] = await Promise.all([
-    ballot.title(),
-    ballot.state(),
-    ballot.candidateCount(),
-  ]);
+  const [title, state, candidateCount] = await withRetry(() =>
+    Promise.all([ballot.title(), ballot.state(), ballot.candidateCount()])
+  );
   return {
     id,
     creator,

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/useAuth";
+import { useAutoDismiss } from "@/lib/useAutoDismiss";
 
 type UserRow = { username: string; disabled: boolean; createdAt: number; lastLogin?: number; elections: number };
 type Wallet = { address: string; balance: number; low: boolean };
@@ -23,6 +24,7 @@ export default function AccountsPage() {
   const [password, setPassword] = useState(() => randomPassword());
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: "error" | "success"; text: string } | null>(null);
+  useAutoDismiss(msg, () => setMsg(null));
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [reset, setReset] = useState<{ username: string; password: string } | null>(null);
 

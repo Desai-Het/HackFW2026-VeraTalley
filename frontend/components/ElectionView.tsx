@@ -6,25 +6,22 @@ import AdminPanel from "@/components/AdminPanel";
 import CandidateList from "@/components/CandidateList";
 import TallyScene from "@/components/TallySceneLazy";
 import StateBadge from "@/components/StateBadge";
-import { describeError, getElectionBallotAt, getReadProvider, getVoterRegistryAt } from "@/lib/contracts";
+import WinnerBanner from "@/components/WinnerBanner";
+import { getElectionBallotAt, getReadProvider, getVoterRegistryAt } from "@/lib/contracts";
 import { shortAddress } from "@/lib/elections";
-import { getTargetChainId } from "@/lib/network";
-import { getWalletSigner, useWallet } from "@/lib/useWallet";
+import { useWallet } from "@/lib/useWallet";
 import { useMyElections } from "@/lib/useAuth";
 import { leaders } from "@/lib/verify";
 
 const POLL_INTERVAL_MS = 5000;
-const AMOY_CHAIN_ID = 80002;
-
-type Status = { kind: "error" | "success" | "info"; text: string } | null;
 
 type Props = { registryAddress: string; ballotAddress: string; electionId?: string };
 
-/** One election, for anyone. Voters see a short prompt for where they stand (connect, ready,
+/** One election, for anyone. Voters see a short prompt for where they stand (ready,
  *  not registered, already voted), the ballot, and the result once closed. The election's admin
  *  additionally gets the manage panel. Technical details sit in a collapsed section. */
 export default function ElectionView({ registryAddress, ballotAddress, electionId }: Props) {
-  const { account, hasWallet, connect, error: walletError } = useWallet();
+  const { account, error: walletError } = useWallet();
   const myElections = useMyElections();
 
   const [title, setTitle] = useState("");
@@ -33,6 +30,7 @@ export default function ElectionView({ registryAddress, ballotAddress, electionI
   const [ballotState, setBallotState] = useState(0);
   const [admin, setAdmin] = useState<string | null>(null);
   const [voterCount, setVoterCount] = useState(0);
+  const [approvedCount, setApprovedCount] = useState(0); // everyone invited, plus wallets added directly
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
@@ -40,22 +38,21 @@ export default function ElectionView({ registryAddress, ballotAddress, electionI
   const [hasVoted, setHasVoted] = useState<boolean | null>(null);
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [pending, setPending] = useState(false);
-  const [status, setStatus] = useState<Status>(null);
-  const [lastTxHash, setLastTxHash] = useState<string | null>(null);
 
   const refreshPublicData = useCallback(async () => {
     try {
       const provider = getReadProvider();
       const ballot = getElectionBallotAt(ballotAddress, provider);
       const registry = getVoterRegistryAt(registryAddress, provider);
-      const [t, c, tl, s, a, vc] = await Promise.all([
+      const [t, c, tl, s, a, vc, ic, icc] = await Promise.all([
         ballot.title(),
         ballot.getCandidates(),
         ballot.getTally(),
         ballot.state(),
         ballot.admin(),
         registry.voterCount(),
+        registry.inviteCount(),
+        registry.inviteClaimedCount(),
       ]);
       setTitle(t);
       setCandidates(c);
@@ -63,6 +60,7 @@ export default function ElectionView({ registryAddress, ballotAddress, electionI
       setBallotState(Number(s));
       setAdmin(a);
       setVoterCount(Number(vc));
+      setApprovedCount(Number(ic) + Number(vc) - Number(icc));
       setLoadError(false);
     } catch (err) {
       console.error("Failed to load election data", err);
@@ -95,8 +93,7 @@ export default function ElectionView({ registryAddress, ballotAddress, electionI
   }, [refreshPublicData]);
 
   useEffect(() => {
-    // A different wallet starts with a clean slate: no leftover messages or ballot choice.
-    setStatus(null);
+    // A different wallet starts with a clean slate: no leftover ballot choice.
     setSelectedId(null);
     if (account) {
       refreshAccountData(account);
@@ -105,26 +102,6 @@ export default function ElectionView({ registryAddress, ballotAddress, electionI
       setHasVoted(null);
     }
   }, [account, refreshAccountData]);
-
-  async function castVote() {
-    if (selectedId === null || !account) return;
-    setPending(true);
-    setStatus(null);
-    try {
-      const signer = await getWalletSigner();
-      const ballot = getElectionBallotAt(ballotAddress, signer);
-      const tx = await ballot.castVote(selectedId);
-      setStatus({ kind: "info", text: "Vote submitted. Waiting for confirmation..." });
-      const receipt = await tx.wait();
-      setLastTxHash(receipt.hash);
-      setStatus({ kind: "success", text: "Your vote was recorded." });
-      await Promise.all([refreshPublicData(), refreshAccountData(account)]);
-    } catch (err) {
-      setStatus({ kind: "error", text: describeError(err) });
-    } finally {
-      setPending(false);
-    }
-  }
 
   const refreshAll = useCallback(async () => {
     await refreshPublicData();
@@ -136,7 +113,6 @@ export default function ElectionView({ registryAddress, ballotAddress, electionI
   // Someone choosing a candidate needs the selectable list; everyone else gets the 3D results (the
   // list stays in the page, hidden, for screen readers) so the same numbers are not shown twice.
   const showScene = ballotState !== 0 && !canVote;
-  const explorerBase = getTargetChainId() === AMOY_CHAIN_ID ? "https://amoy.polygonscan.com/tx/" : null;
 
   const manage = isAdmin ? (
     <AdminPanel
@@ -144,7 +120,6 @@ export default function ElectionView({ registryAddress, ballotAddress, electionI
       ballotAddress={ballotAddress}
       state={ballotState}
       voterCount={voterCount}
-      candidateCount={candidates.length}
       onChanged={refreshAll}
       electionId={electionId}
       title={title}
@@ -161,22 +136,7 @@ export default function ElectionView({ registryAddress, ballotAddress, electionI
         </div>
       );
     }
-    if (!account) {
-      return (
-        <div className="vote-prompt">
-          <p>
-            {hasWallet === false
-              ? "You need a wallet such as MetaMask to vote. You can still follow the results below."
-              : "Connect your wallet to vote in this election."}
-          </p>
-          {hasWallet !== false && (
-            <button className="primary" onClick={connect}>
-              Connect wallet
-            </button>
-          )}
-        </div>
-      );
-    }
+    if (!account) return null;
     const pill = (
       <span className="wallet-pill mono" title={account}>
         {shortAddress(account)}
@@ -200,14 +160,11 @@ export default function ElectionView({ registryAddress, ballotAddress, electionI
         </div>
       );
     }
-    if (isEligible === false) {
+    if (isEligible === false && !isAdmin) {
       return (
         <div className="vote-prompt">
           <p>
-            {pill}{" "}
-            {isAdmin
-              ? "isn't on the voter list. As the organizer you can add your own address under Manage this election."
-              : "isn't registered to vote here. Ask the organizer to add this wallet."}
+            {pill} isn&apos;t registered to vote here. Ask the organizer to add this wallet.
           </p>
         </div>
       );
@@ -222,11 +179,10 @@ export default function ElectionView({ registryAddress, ballotAddress, electionI
       <div className="election-head">
         <h1>{loading ? "Loading election..." : title || "Election"}</h1>
         <div className="meta-line">
-          <StateBadge state={ballotState} />
           {isAdmin && <span className="badge">You manage this election</span>}
           {!loading && (
             <span>
-              {voterCount} registered {voterCount === 1 ? "voter" : "voters"}
+              {approvedCount} approved {approvedCount === 1 ? "voter" : "voters"}
             </span>
           )}
         </div>
@@ -249,77 +205,41 @@ export default function ElectionView({ registryAddress, ballotAddress, electionI
             election opens) and is moved visually: first while setting up, after the ballot later. */}
         {manage && <div className={ballotState === 0 ? "order-first" : "order-late"}>{manage}</div>}
 
-        {status && (
-          <div className={`status-banner ${status.kind === "error" ? "error" : status.kind === "success" ? "success" : ""}`} role="status">
-            {status.text}
-            {status.kind === "success" && lastTxHash && (
+        {ballotState === 2 && !loading && (
+          <WinnerBanner names={top.map((i) => candidates[i])} votes={top.length ? Number(tally[top[0]]) : 0} />
+        )}
+
+        {/* While setting up, the organiser sees only the manage steps; the ballot is for voters. */}
+        {!(isAdmin && ballotState === 0) && (
+          <section className="card" aria-label="Ballot">
+            {prompt()}
+            <div className="ballot-head">
+              <h2>{ballotState === 2 ? "Final results" : "Candidates"}</h2>
+              <StateBadge state={ballotState} />
+            </div>
+            {loading ? (
+              <p>Loading...</p>
+            ) : (
               <>
-                {" "}
-                <Link href={`/check?tx=${lastTxHash}`}>Check where this vote went</Link>
-                {explorerBase && (
-                  <>
-                    {" · "}
-                    <a href={`${explorerBase}${lastTxHash}`} target="_blank" rel="noreferrer">
-                      View on Polygonscan
-                    </a>
-                  </>
+                {showScene && (
+                  <TallyScene candidates={candidates} tally={tally.map((x) => Number(x ?? 0n))} closed={ballotState === 2} />
                 )}
+                <div className={showScene ? "sr-only" : undefined}>
+                  <CandidateList
+                    candidates={candidates}
+                    tally={tally}
+                    selectedId={selectedId}
+                    onSelect={setSelectedId}
+                    canVote={canVote}
+                  />
+                </div>
               </>
             )}
-          </div>
+          </section>
         )}
-
-        {ballotState === 2 && !loading && (
-          <div className="result-banner" role="status">
-            {top.length === 0 && <strong>Voting is closed. No votes were cast.</strong>}
-            {top.length === 1 && (
-              <strong>
-                Result: {candidates[top[0]]} won with {tally[top[0]].toString()} {tally[top[0]] === 1n ? "vote" : "votes"}.
-              </strong>
-            )}
-            {top.length > 1 && (
-              <strong>
-                Result: a tie between {top.map((i) => candidates[i]).join(" and ")}, with {tally[top[0]].toString()} each.
-              </strong>
-            )}
-          </div>
-        )}
-
-        <section className="card" aria-label="Ballot">
-          {prompt()}
-          <h2 style={{ marginTop: 0 }}>{ballotState === 2 ? "Final results" : "Candidates"}</h2>
-          {loading ? (
-            <p>Loading...</p>
-          ) : (
-            <>
-              {showScene && (
-                <TallyScene candidates={candidates} tally={tally.map((x) => Number(x ?? 0n))} closed={ballotState === 2} />
-              )}
-              <div className={showScene ? "sr-only" : undefined}>
-                <CandidateList
-                  candidates={candidates}
-                  tally={tally}
-                  selectedId={selectedId}
-                  onSelect={setSelectedId}
-                  canVote={canVote}
-                />
-              </div>
-            </>
-          )}
-          {account && ballotState === 1 && (
-            <div className="ballot-actions">
-              <button className="primary" onClick={castVote} disabled={!canVote || selectedId === null || pending}>
-                {pending ? "Submitting..." : "Cast vote"}
-              </button>
-            </div>
-          )}
-        </section>
 
         {electionId && ballotState !== 0 && (
           <div className="tools-row">
-            <Link href={`/elections/${electionId}/verify`} className="btn">
-              Verify the count
-            </Link>
             <Link href={`/elections/${electionId}/live`} target="_blank" rel="noreferrer" className="btn">
               Open live display
             </Link>
